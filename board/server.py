@@ -47,7 +47,7 @@ with open(os.path.join(STATIC, "data.json"), encoding="utf-8") as fh:
 
 _lock = threading.Lock()
 _clients = []          # one queue.Queue per open /stream connection
-_led = {"text": "THREADTRACE", "seq": 0}
+_led = {"text": "THREADTRACE", "seq": 0, "kind": 0, "a": 0, "b": 0}
 
 
 def db():
@@ -86,14 +86,16 @@ def add_event(ev):
 
 
 def set_led(ev):
+    """Latest event for the LED app: kind 1 = scan (a = cycles), kind 2 = weigh (a = kg x 10, b = litres saved)."""
     if ev["type"] == "scan":
-        text = f"+1 {ev['asset_id']}"
+        p = DATA["passports"].get(ev["asset_id"], {"cy": []})
+        _led.update(kind=1, a=len(p["cy"]), b=0, text=f"+1 {ev['asset_id']}")
     else:
         lf = DATA["laundries"]["L001"]
         b = DATA["baselines"]["B_LOCAL"]
         saved = ev["kg"] * (b["water_l_per_kg"] - lf["water_l_per_kg"])
-        text = f"{ev['kg']:.1f}KG -{saved:.0f}L"
-    _led["text"], _led["seq"] = text, _led["seq"] + 1
+        _led.update(kind=2, a=int(round(ev["kg"] * 10)), b=int(round(saved)), text=f"{ev['kg']:.1f}KG -{saved:.0f}L")
+    _led["seq"] += 1
 
 
 def passport_summary(aid):
