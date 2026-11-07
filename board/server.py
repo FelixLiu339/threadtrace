@@ -234,6 +234,8 @@ class H(BaseHTTPRequestHandler):
             return self._send(200 if info else 404, page_scan(aid, info))
         if path == "/weigh":
             return self._send(200, PAGE_WEIGH)
+        if path == "/scale":
+            return self._static("scale.html")
         if path == "/cards":
             return self._send(200, page_cards(self._base()))
         if path == "/events":

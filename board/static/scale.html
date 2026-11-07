@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Return Station Scale</title>
+<style>
+:root{--body:#d9dde2;--rim:#b6bcc4;--lcd:#9fbf8a;--lcd-dark:#1c2a14;--lcd-off:rgba(28,42,20,.09);--bg:#3a4048}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',sans-serif}
+body{display:grid;place-items:center;padding:16px}
+.scale{width:min(760px,96vw);background:linear-gradient(180deg,#e7eaee,var(--body));border-radius:28px;padding:28px 30px 34px;box-shadow:0 30px 60px rgba(0,0,0,.45),inset 0 2px 0 #fff;border:2px solid var(--rim)}
+.top{display:flex;justify-content:space-between;align-items:center;color:#4a525c;font-weight:700;letter-spacing:2px;font-size:14px;margin-bottom:16px}
+.top small{font-weight:600;letter-spacing:1px;color:#6b737d}
+.lcdwrap{background:#2f3540;border-radius:16px;padding:14px;box-shadow:inset 0 3px 8px rgba(0,0,0,.6)}
+.lcd{background:radial-gradient(ellipse at 40% 30%,#b6d39f,var(--lcd));border-radius:8px;padding:14px 18px 10px;position:relative}
+canvas{width:100%;height:auto;display:block}
+.ind{display:flex;gap:22px;font-size:15px;font-weight:800;letter-spacing:1px;color:var(--lcd-off);margin-top:4px}
+.ind .on{color:var(--lcd-dark)}
+.keys{display:flex;gap:14px;justify-content:center;margin-top:22px;flex-wrap:wrap}
+.keys button{width:110px;height:58px;border-radius:14px;border:0;background:linear-gradient(180deg,#f6f7f9,#c9ced5);box-shadow:0 4px 0 #9aa1aa,0 6px 10px rgba(0,0,0,.25);font-weight:800;letter-spacing:1px;color:#3d444d;cursor:pointer;font-size:14px}
+.keys button:active{transform:translateY(3px);box-shadow:0 1px 0 #9aa1aa}
+.keys button.go{background:linear-gradient(180deg,#5fd18a,#2e9d5a);color:#fff;box-shadow:0 4px 0 #1f6e3f,0 6px 10px rgba(0,0,0,.25)}
+.note{color:#c9ced5;font-size:14px;text-align:center;margin-top:18px;max-width:560px}
+</style>
+</head>
+<body>
+<div>
+  <div class="scale">
+    <div class="top"><span>RETURN STATION · PLATFORM SCALE</span><small>MAX 150 kg · d = 0.1 kg</small></div>
+    <div class="lcdwrap"><div class="lcd">
+      <canvas id="c" width="1000" height="300" aria-label="Scale display"></canvas>
+      <div class="ind"><span id="iStable">▶ STABLE</span><span id="iZero">▶ ZERO</span><span class="on">▶ NET</span><span style="margin-left:auto" class="on">kg</span></div>
+    </div></div>
+    <div class="keys">
+      <button id="bZero">ZERO</button><button id="bTare">TARE</button><button class="go" id="bNew">NEW BAG</button>
+    </div>
+  </div>
+  <p class="note">Simulated scale for the demo. Tap <b>NEW BAG</b> (or press Space) for a new weight, then photograph the display on the phone weigh-in page.</p>
+</div>
+<script>
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const ON = '#1c2a14', OFF = 'rgba(28,42,20,.09)';
+// 7-segment map: a b c d e f g
+const SEG = {'0':'abcdef','1':'bc','2':'abged','3':'abgcd','4':'fgbc','5':'afgcd','6':'afgedc','7':'abc','8':'abcdefg','9':'abcdfg','-':'g',' ':''};
+function digit(x, y, w, h, ch, dot){
+  const t = w*0.17, segs = SEG[ch]||'', sk = 0.1*h; // skew for italic LCD look
+  const P = (px,py)=>[x+px+sk*(1-py/h), y+py];
+  const poly = pts => { ctx.beginPath(); pts.forEach((p,i)=>{ const [a,b]=P(...p); i?ctx.lineTo(a,b):ctx.moveTo(a,b); }); ctx.closePath(); ctx.fill(); };
+  const hz = (yy) => [[t*.6,yy],[t,yy-t/2],[w-t,yy-t/2],[w-t*.6,yy],[w-t,yy+t/2],[t,yy+t/2]];
+  const vt = (xx,y0,y1) => [[xx,y0+t*.6],[xx+t/2,y0+t],[xx+t/2,y1-t],[xx,y1-t*.6],[xx-t/2,y1-t],[xx-t/2,y0+t]];
+  const S = {a:hz(t/2), g:hz(h/2), d:hz(h-t/2), f:vt(t/2,0,h/2), b:vt(w-t/2,0,h/2), e:vt(t/2,h/2,h), c:vt(w-t/2,h/2,h)};
+  for(const k in S){ ctx.fillStyle = segs.includes(k)? ON : OFF; poly(S[k]); }
+  ctx.fillStyle = dot? ON : OFF; ctx.beginPath(); const [dx,dy]=P(w+t*.9,h-t/2); ctx.arc(dx,dy,t*.55,0,7); ctx.fill();
+}
+function draw(v){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const s = v.toFixed(1).padStart(5,' '); // 4 digits, e.g. " 12.4"
+  const chars = s.replace('.','').split(''); const dotAt = chars.length-2;
+  const w = 170, h = 250, gap = 34, x0 = cv.width - chars.length*(w+gap) - 10;
+  chars.forEach((ch,i)=>digit(x0+i*(w+gap), 25, w, h, ch, i===dotAt));
+}
+let value = 0, target = 0, settling = 0, timer;
+const iStable = document.getElementById('iStable'), iZero = document.getElementById('iZero');
+function set(on, el){ el.classList.toggle('on', on); }
+function newBag(){
+  target = Math.round((5 + Math.random()*14)*10)/10; settling = 22; clearInterval(timer);
+  set(false,iStable); set(false,iZero);
+  timer = setInterval(()=>{
+    if(settling>0){ value = target + (Math.random()-.5)*settling*0.35; settling--; draw(Math.max(0,value)); }
+    else { value = target; draw(value); set(true,iStable); clearInterval(timer); }
+  }, 70);
+}
+function zero(){ clearInterval(timer); value = 0; draw(0); set(true,iStable); set(true,iZero); }
+document.getElementById('bNew').onclick = newBag;
+document.getElementById('bZero').onclick = zero;
+document.getElementById('bTare').onclick = zero;
+document.addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); newBag(); } });
+draw(0); set(true,iZero); setTimeout(newBag, 500);
+</script>
+</body>
+</html>
