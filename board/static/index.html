@@ -227,6 +227,28 @@ header select{font-size:16px;padding:8px 12px}
 .at-qr span{color:var(--muted);font-size:14px}
 .at-qr[hidden]{display:none}
 .attract.fade .at-text,.attract.fade .at-qr{transition:opacity .5s;opacity:0}
+.actions{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.act{border:1px solid var(--line);border-radius:16px;background:var(--panel);overflow:hidden}
+.act.open{border-color:rgba(var(--accent-rgb),.55)}
+.act-head{width:100%;display:flex;align-items:center;gap:14px;padding:16px 18px;background:none;border:0;cursor:pointer;text-align:left}
+.act-head:hover{background:rgba(var(--accent-rgb),.06)}
+.act-ic{font-size:30px;width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:rgba(var(--accent-rgb),.12);flex:none}
+.act-t{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.act-t b{font-size:19px;color:var(--text)} .act-t span{font-size:15px;color:var(--muted)}
+.act-chev{font-size:22px;color:var(--muted);transition:transform .25s}
+.act.open .act-chev{transform:rotate(180deg)}
+.act-body{display:none;padding:4px 18px 18px;flex-direction:column;gap:12px}
+.act.open .act-body{display:flex}
+.act-row{display:flex;gap:16px;align-items:center}
+.act-row .qr{background:#fff;padding:8px;border-radius:12px;width:112px;height:112px;display:grid;place-items:center;flex:none}
+.act-row .qr[hidden]{display:none}
+.act-txt{font-size:15px;color:var(--muted);display:flex;flex-direction:column;gap:4px} .act-txt b{color:var(--text);font-size:16px}
+.act-lbl{font-size:14px;color:var(--muted)}
+.act-pick{display:flex;gap:10px;flex-wrap:wrap} .act-pick select{flex:1;min-width:0;font-size:15px}
+.act-btns{display:flex;gap:10px;flex-wrap:wrap} .act-btns .btn,.act-pick .btn{font-size:15px;padding:9px 14px}
+.at-cust{position:absolute;top:max(20px,3vh);right:max(24px,5vw);display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;z-index:2}
+.at-cust button{background:rgba(14,20,28,.7);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:8px 16px;font-size:15px;cursor:pointer;backdrop-filter:blur(6px)}
+.at-cust button.on{color:#04121b;background:var(--accent);border-color:transparent;font-weight:700}
 /* report (print) */
 #report{display:none}
 @media print{
@@ -274,8 +296,24 @@ header select{font-size:16px;padding:8px 12px}
     <div class="col">
       <div class="card mapcard"><svg class="map" id="map"></svg><div class="hint" id="mapNote"></div></div>
       <div class="liveline" id="feed"></div>
-      <div class="phoneqr"><div class="qr" id="weighQR"></div><div><b>Phone weigh-in</b><br>Scan with the phone camera to open the weigh-in page.<br><a href="cards" target="_blank">Garment QR cards ↗</a></div></div>
-      <div class="demo"><button class="btn" onclick="simulateScan()">▣ Try a garment scan</button><button class="btn" onclick="openScale()">⚖ Open weigh station</button><button class="btn" onclick="simulateWeigh()">Try a weigh-in</button></div>
+      <div class="actions">
+        <div class="act" id="actScan">
+          <button class="act-head" onclick="toggleAct('actScan')" aria-expanded="false"><span class="act-ic">👕</span><span class="act-t"><b>Garment scan</b><span>Scan a garment tag to see its year, its site and the whole account</span></span><span class="act-chev">⌄</span></button>
+          <div class="act-body">
+            <div class="act-row"><div class="qr" id="scanQR"></div><div class="act-txt"><b>With a phone</b>Scan this code, or the QR card on a garment, with the phone camera.</div></div>
+            <label class="act-lbl" for="selGarment">Or pick a garment</label>
+            <div class="act-pick"><select id="selGarment"></select><button class="btn primary" onclick="simulateScan($('#selGarment').value)">▶ Play this garment</button></div>
+            <div class="act-btns"><button class="btn" onclick="window.open('cards','_blank')">🖨 Print garment QR cards</button><button class="btn" onclick="simulateScan()">🎲 Random garment</button></div>
+          </div>
+        </div>
+        <div class="act" id="actWeigh">
+          <button class="act-head" onclick="toggleAct('actWeigh')" aria-expanded="false"><span class="act-ic">⚖</span><span class="act-t"><b>Weigh-in</b><span>Weigh a return bag and see the water it saved</span></span><span class="act-chev">⌄</span></button>
+          <div class="act-body">
+            <div class="act-row"><div class="qr" id="weighQR"></div><div class="act-txt"><b>With a phone</b>Scan this code to open the weigh-in page, then photograph the scale.</div></div>
+            <div class="act-btns"><button class="btn primary" onclick="openScale()">⚖ Open the scale</button><button class="btn" onclick="simulateWeigh()">🎲 Random weigh-in</button></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -295,6 +333,7 @@ header select{font-size:16px;padding:8px 12px}
 
 <div class="attract" id="attract" hidden>
   <canvas id="attractCv"></canvas>
+  <div class="at-cust" id="atCust"></div>
   <div class="at-text">
     <div class="at-eyebrow" id="atEyebrow"></div>
     <h2 class="at-h">Scan one garment.<br><span>See the value of the whole account.</span></h2>
@@ -588,7 +627,7 @@ function ovShell(tag, step, total){
 function playScan(ev){
   const calc = passportCalc(ev.asset_id); const ov = $('#ov');
   if(!calc){ toast(`Unknown garment ${ev.asset_id}`); S.playing=false; return; }
-  if(calc.p.c !== S.cust){ S.cust = calc.p.c; $('#selCust').value = S.cust; setPrio(PRIO_DEFAULT[C().industry]||'water', false); }
+  if(calc.p.c !== S.cust){ setCustomer(calc.p.c); }
   const site = siteById(calc.p.s); S.highlight = site.id;
   const scenes = [()=>scene1(calc, ev), ()=>scene2(calc, site), ()=>scene3(site)];
   let i = 0; ov.classList.add('show');
@@ -727,14 +766,36 @@ function attractFrame(now){
     if(k2>=1){ const cb = cv0.cb; AT.converge = null; hideAttract(); cb&&cb(); return; } }
   AT.raf = requestAnimationFrame(attractFrame);
 }
+function toggleAct(id){
+  ['actScan','actWeigh'].forEach(k=>{ const el=$('#'+k), open = k===id ? !el.classList.contains('open') : false; el.classList.toggle('open', open); el.querySelector('.act-head').setAttribute('aria-expanded', open); });
+}
+function fillGarments(){
+  const sel = $('#selGarment'); if(!sel) return;
+  let ids = (S.data.demo_assets||[]).filter(a=>(S.data.passports[a]||{}).c===S.cust);
+  if(ids.length < 6){ const more = Object.keys(S.data.passports).filter(a=>S.data.passports[a].c===S.cust && !ids.includes(a)).slice(0, 6-ids.length); ids = ids.concat(more); }
+  sel.innerHTML = ids.map(a=>{ const p=S.data.passports[a], pr=S.data.products[p.p], st=siteById(p.s)||{}; return `<option value="${a}">${pr.name} · ${st.city||p.s} · ${p.cy.length} cycles</option>`; }).join('');
+}
+function setCustomer(cid){
+  if(!S.data.customers[cid]) return;
+  S.cust = cid; $('#selCust').value = cid; S.highlight = null; closeDrawer();
+  setPrio(PRIO_DEFAULT[C().industry]||'water'); fillGarments();
+  const demo = (S.data.demo_assets||[]).find(a=>(S.data.passports[a]||{}).c===cid);
+  if(GATEWAY_QR && demo) drawQR($('#scanQR'), location.origin + '/s/' + demo, 96);
+  if(AT.on){ attractTexts(); attractBuild(); }
+}
+function attractTexts(){
+  const c = C();
+  $('#atEyebrow').textContent = `${c.name} · ${c.industry} · 2025 annual review`;
+  $('#atSub').textContent = `${fmt(c.service.garments_tracked)} garments · ${c.sites.length} sites · every dot is one garment`;
+  $('#atCust').innerHTML = Object.values(S.data.customers).map(x=>`<button data-c="${x.id}" class="${x.id===S.cust?'on':''}">${x.name}</button>`).join('');
+  $('#atCust').querySelectorAll('button').forEach(b=>b.onclick = e => { e.stopPropagation(); setCustomer(b.dataset.c); });
+  const demo = (S.data.demo_assets||[]).find(a=>(S.data.passports[a]||{}).c===S.cust) || (S.data.demo_assets||[])[0];
+  if(GATEWAY_QR && demo){ $('.at-qr').hidden = false; drawQR($('#atQR'), location.origin + '/s/' + demo, 160); } else $('.at-qr').hidden = true;
+}
 function showAttract(){
   if(AT.on || !S.data) return; if($('#ov').classList.contains('show') || !$('#scalebox').hidden) return;
   closeDrawer(); AT.on = true; const box = $('#attract'); box.hidden = false; box.classList.remove('fade');
-  const c = C();
-  $('#atEyebrow').textContent = `${c.name} · 2025 annual review`;
-  $('#atSub').textContent = `${fmt(c.service.garments_tracked)} garments · ${c.sites.length} sites · every dot is one garment`;
-  const demo = (S.data.demo_assets||[]).find(a=>(S.data.passports[a]||{}).c===S.cust) || (S.data.demo_assets||[])[0];
-  if(GATEWAY_QR && demo){ $('.at-qr').hidden = false; drawQR($('#atQR'), location.origin + '/s/' + demo, 160); } else $('.at-qr').hidden = true;
+  attractTexts();
   attractBuild(); AT.t0 = performance.now();
   const g = $('#attractCv').getContext('2d'); g.fillStyle = '#04070b'; g.fillRect(0,0,$('#attractCv').width,$('#attractCv').height);
   if(matchMedia('(prefers-reduced-motion: reduce)').matches){ attractFrame(performance.now()); cancelAnimationFrame(AT.raf); }
@@ -746,7 +807,7 @@ function setupAttract(){
   const bump = () => { AT.idle = Date.now(); };
   ['mousemove','keydown','touchstart','click','wheel'].forEach(ev=>addEventListener(ev, bump, {passive:true}));
   addEventListener('mousemove', e=>{ AT.mouse.x = e.clientX; AT.mouse.y = e.clientY; });
-  $('#attract').addEventListener('click', e=>{ if(AT.converge) return; hideAttract(); });
+  $('#attract').addEventListener('click', e=>{ if(AT.converge || e.target.closest('.at-cust')) return; hideAttract(); });
   addEventListener('resize', ()=>{ if(AT.on) attractBuild(); });
   setInterval(()=>{ if(!AT.on && !S.playing && Date.now()-AT.idle > 90000) showAttract(); }, 5000);
   AT.idle = Date.now();
@@ -833,7 +894,7 @@ function init(data){
   S.data = data; S.kpis = load('kpis', []);
   $('#selCust').innerHTML = Object.values(data.customers).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
   $('#selBase').innerHTML = Object.entries(data.baselines).map(([id,b])=>`<option value="${id}" ${b.default?'selected':''}>${b.name}</option>`).join('');
-  $('#selCust').onchange = e => { S.cust = e.target.value; S.highlight=null; closeDrawer(); setPrio(PRIO_DEFAULT[C().industry]||'water'); };
+  $('#selCust').onchange = e => setCustomer(e.target.value);
   $('#selBase').onchange = e => { S.base = e.target.value; renderAll(); };
   document.querySelectorAll('#segPrio button').forEach(b=>b.onclick=()=>setPrio(b.dataset.p));
   $('#btnReport').onclick = () => { buildReport(); window.print(); };
@@ -847,7 +908,9 @@ function init(data){
     if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='a'||e.key==='A'){ AT.on? hideAttract() : showAttract(); }
     if(e.key==='Escape'){ closeOv(); closeDrawer(); closeScale(); if(AT.on) hideAttract(); $('#pop').style.display='none'; } });
   setPrio(PRIO_DEFAULT[C().industry]||'water');
-  if(/^https?:/.test(location.protocol)) drawQR($('#weighQR'), location.origin + '/weigh', 96); else $('.phoneqr').hidden = true;
+  if(GATEWAY_QR){ drawQR($('#weighQR'), location.origin + '/weigh', 96); drawQR($('#scanQR'), location.origin + '/s/' + (((S.data.demo_assets||[]).find(a=>(S.data.passports[a]||{}).c===S.cust))||''), 96); }
+  else { $('#weighQR').hidden = true; $('#scanQR').hidden = true; }
+  fillGarments(); toggleAct('actScan');
   connect();
   setupAttract();
   const q = new URLSearchParams(location.search);
