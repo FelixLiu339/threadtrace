@@ -208,7 +208,7 @@ svg text{font-family:var(--font)}
       <div class="card"><h3>Live field evidence <span class="grow"></span><span class="badge FIELD_SCAN_DEMO" data-b="FIELD_SCAN_DEMO">field scan (demo)</span></h3><div class="feed" id="feed"><div class="empty">Scan a garment QR code or weigh a return bag to add evidence.</div></div></div>
     </div>
   </div>
-  <div class="demo-keys">Demo keys: <b>S</b> simulate garment scan · <b>W</b> simulate weigh-in · <b>Esc</b> close</div>
+  <div class="demo-keys"><button class="btn" onclick="simulateScan()">▣ Simulate garment scan</button> <button class="btn" onclick="simulateWeigh()">⚖ Simulate weigh-in</button><br><span style="display:inline-block;margin-top:8px">Keys: <b>S</b> scan · <b>W</b> weigh-in · <b>Esc</b> close</span></div>
 </div>
 
 <div class="drawer" id="drawer"></div>
