@@ -895,48 +895,57 @@ function attractFrame(now){
   const cv = $('#attractCv'), g = cv.getContext('2d'), W = cv.width, H = cv.height, d = AT.dpr;
   const rgb = getComputedStyle(document.body).getPropertyValue('--accent-rgb').trim() || '56,189,248';
   const t = (now - AT.t0)/1000, cx = W/2, cy = H/2, cv0 = AT.converge;
-  const DUR = 1150, el = cv0 ? now - cv0.t : 0, ck = cv0 ? Math.min(1, el/DUR) : 0;
+  if(cv0) return warpFrame(now, g, W, H, d, rgb, cx, cy, cv0);
   g.globalCompositeOperation = 'source-over';
-  g.fillStyle = cv0 ? 'rgba(4,7,11,0.16)' : 'rgba(4,7,11,0.22)'; g.fillRect(0,0,W,H);      // motion trails (longer while converging)
+  g.fillStyle = 'rgba(4,7,11,0.22)'; g.fillRect(0,0,W,H);                                  // motion trails
   const mx = AT.mouse.x*d, my = AT.mouse.y*d;
-  if(cv0) g.globalCompositeOperation = 'lighter';
   for(const p of AT.parts){
-    const th = AT.threads[p.k]; p.u += th.sp*0.016*(cv0 ? 0.3 : 1); if(p.u>1.1) p.u -= 1.2;
+    const th = AT.threads[p.k]; p.u += th.sp*0.016; if(p.u>1.1) p.u -= 1.2;
     let x = (p.u*1.2-0.1)*W, y = (th.y + p.j + th.amp*Math.sin(p.u*th.f*6.283 + t*0.6 + th.ph))*H;
-    if(!cv0){ const dx = x-mx, dy = y-my, dd = dx*dx+dy*dy, R = 140*d;
-      if(dd < R*R){ const f = (1 - Math.sqrt(dd)/R)*40*d; const m = Math.sqrt(dd)||1; x += dx/m*f; y += dy/m*f; } }
-    const a = 0.4 + 0.6*th.b;
-    if(cv0){
-      if(p.dl == null) p.dl = Math.random()*0.35;
-      const k = Math.max(0, Math.min(1, (ck - p.dl)/(1 - p.dl))), e = k*k*k;          // ease-in: slow start, fast pull
-      const dx = x-cx, dy = y-cy, r0 = Math.hypot(dx,dy), a0 = Math.atan2(dy,dx), r = r0*(1-e), an = a0 + e*2.6;  // swirl inwards
-      x = cx + r*Math.cos(an); y = cy + r*Math.sin(an)*0.85;
-      const sz = p.r*d*(1 + e*1.2);
-      g.fillStyle = `rgba(${rgb},${Math.min(1, a*(0.6 + e))})`; g.beginPath(); g.arc(x, y, sz, 0, 6.283); g.fill();
-    } else { g.fillStyle = `rgba(${rgb},${a})`; g.fillRect(x, y, p.r*d, p.r*d); }
+    const dx = x-mx, dy = y-my, dd = dx*dx+dy*dy, R = 140*d;
+    if(dd < R*R){ const f = (1 - Math.sqrt(dd)/R)*40*d; const m = Math.sqrt(dd)||1; x += dx/m*f; y += dy/m*f; }
+    p.x = x; p.y = y;
+    g.fillStyle = `rgba(${rgb},${0.4 + 0.6*th.b})`; g.fillRect(x, y, p.r*d, p.r*d);
   }
-  if(cv0){
-    const glow = Math.min(1, el/DUR);                                                     // core builds up while converging
-    const core = g.createRadialGradient(cx,cy,0,cx,cy,(40+60*glow)*d);
-    core.addColorStop(0, `rgba(255,255,255,${0.15+0.6*glow})`); core.addColorStop(.35, `rgba(${rgb},${0.25*glow})`); core.addColorStop(1, `rgba(${rgb},0)`);
-    g.fillStyle = core; g.beginPath(); g.arc(cx,cy,(40+60*glow)*d,0,6.283); g.fill();
-    if(ck >= 1){
-      const k2 = Math.min(1, (el - DUR)/650), ease = 1 - Math.pow(1-k2, 3), diag = Math.hypot(W,H)/2;
-      g.globalCompositeOperation = 'lighter';
-      for(let i=0;i<2;i++){ const kk = Math.max(0, ease - i*0.18), rr = kk*diag;              // two shockwave rings
-        g.strokeStyle = `rgba(${i?rgb:'255,255,255'},${(1-k2)*(i?0.5:0.85)})`; g.lineWidth = (10*(1-kk)+1.5)*d; g.beginPath(); g.arc(cx,cy,Math.max(1,rr),0,6.283); g.stroke(); }
-      const fl = g.createRadialGradient(cx,cy,0,cx,cy,diag*ease+1);
-      fl.addColorStop(0, `rgba(255,255,255,${0.4*(1-k2)})`); fl.addColorStop(1, `rgba(${rgb},0)`);
-      g.fillStyle = fl; g.fillRect(0,0,W,H);
-      if(k2 >= 1){ g.globalCompositeOperation = 'source-over'; const cb = cv0.cb; AT.converge = null; hideAttract(); cb && cb(); revealAfterAttract(); return; }
-    }
-  }
-  g.globalCompositeOperation = 'source-over';
   AT.raf = requestAnimationFrame(attractFrame);
 }
-function revealAfterAttract(){
+/* "warp" into the review: particles become stars rushing out of a bright centre (depth model: radius = F / z) */
+function warpFrame(now, g, W, H, d, rgb, cx, cy, cv0){
+  const WARP = 1500, REVEAL = 650, el = now - cv0.t, diag = Math.hypot(W, H)/2, F = 0.06*diag;
+  if(!cv0.stars){                                                    // start: every visible dot becomes a star at its own place
+    const src = AT.parts.length > 1400 ? AT.parts.filter((_,i)=>i % Math.ceil(AT.parts.length/1400) === 0) : AT.parts;
+    cv0.stars = src.map(p => { const dx = (p.x ?? cx) - cx, dy = (p.y ?? cy) - cy, r = Math.max(4*d, Math.hypot(dx, dy));
+      return {a: Math.atan2(dy, dx), z: Math.min(4, F / r), b: 0.5 + Math.random()*0.5, w: (0.6 + Math.random()*0.9)*d}; });
+    cv0.last = now;
+  }
+  const dt = Math.min(50, now - cv0.last)/1000; cv0.last = now;
+  const k = Math.min(1, el / WARP), speed = 0.2 + 2.1*k*k;          // accelerate
+  g.globalCompositeOperation = 'source-over';
+  g.fillStyle = `rgba(4,7,11,${0.34 - 0.1*k})`; g.fillRect(0,0,W,H);
+  g.globalCompositeOperation = 'lighter';
+  for(const st of cv0.stars){
+    const z0 = st.z; st.z -= speed*dt*st.z*1.6 + speed*dt*0.02;
+    if(st.z < 0.012 || F/st.z > diag*1.2){ st.z = 1 + Math.random()*3; st.a = Math.random()*6.283; continue; }   // respawn deep in the centre
+    const r0 = F/z0, r1 = F/st.z, c = Math.cos(st.a), s = Math.sin(st.a);
+    const near = Math.min(1, r1/diag);                                // outer stars: fewer, longer, dimmer
+    g.strokeStyle = `rgba(${rgb},${st.b*(0.35 + 0.65*(1-near))})`; g.lineWidth = st.w*(1 + near*1.5);
+    g.beginPath(); g.moveTo(cx + c*r0, cy + s*r0); g.lineTo(cx + c*r1, cy + s*r1); g.stroke();
+  }
+  const cr = (14 + 22*k)*d, core = g.createRadialGradient(cx,cy,0,cx,cy,cr*3);   // brightest point is the centre
+  core.addColorStop(0, 'rgba(255,255,255,0.95)'); core.addColorStop(0.12, `rgba(255,255,255,${0.5+0.4*k})`);
+  core.addColorStop(0.35, `rgba(${rgb},${0.25+0.25*k})`); core.addColorStop(1, `rgba(${rgb},0)`);
+  g.fillStyle = core; g.beginPath(); g.arc(cx,cy,cr*3,0,6.283); g.fill();
+  if(el >= WARP){
+    g.globalCompositeOperation = 'source-over';
+    const cb = cv0.cb; AT.converge = null; hideAttract(); cb && cb(); revealAfterAttract(REVEAL); return;
+  }
+  AT.raf = requestAnimationFrame(attractFrame);
+}
+function revealAfterAttract(ms){
   const t = $('#ov').classList.contains('show') ? $('#ov') : $('.app'); if(!t || !t.animate) return;
-  t.animate([{clipPath:'circle(0% at 50% 50%)', filter:'brightness(1.8)'},{clipPath:'circle(75% at 50% 50%)', filter:'brightness(1)'}],{duration:700, easing:'cubic-bezier(.2,.8,.2,1)'});
+  t.animate([{clipPath:'circle(0% at 50% 50%)', filter:'brightness(2.2) blur(6px)', transform:'scale(1.06)'},
+             {clipPath:'circle(18% at 50% 50%)', filter:'brightness(1.5) blur(2px)', transform:'scale(1.03)', offset:.35},
+             {clipPath:'circle(75% at 50% 50%)', filter:'brightness(1) blur(0)', transform:'none'}],{duration:ms||650, easing:'cubic-bezier(.3,.7,.2,1)'});
 }
 function toggleAct(id){
   ['actLot','actScan','actWeigh'].forEach(k=>{ const el=$('#'+k), open = k===id ? !el.classList.contains('open') : false; el.classList.toggle('open', open); el.querySelector('.act-head').setAttribute('aria-expanded', open); });
