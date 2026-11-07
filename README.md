@@ -1,6 +1,9 @@
 # ThreadTrace
 
-**Scan one garment. See the value of the whole account.**
+**Scan one package. See the value of the whole account.**
+
+▶ **Demo video (1 min):** https://youtu.be/n-Ik9JgeN-M
+📄 Docs: [User guide](docs/User_Guide.pdf) · [How it works](docs/How_ThreadTrace_works.pdf) · [Why a hardware gateway](docs/Why_a_hardware_gateway_QA.pdf) · [Sample annual report](docs/ThreadTrace_NorthStar_2025_Annual_Review.pdf)
 
 Lindström x Since AI Hackathon 2026 – *Customer Value & Sustainability Review Generator*.
 
