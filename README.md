@@ -18,8 +18,18 @@ ThreadTrace turns the multi-site data of a textile-service customer into a live,
 | Sustainability value | Water and CO₂e saved vs a selectable baseline (local laundry, home washing, in-house laundry), low / base / high |
 | Improvement / future | Rules-generated observations and steering-committee questions, contract KPIs the KAM adds |
 | Field evidence | Live QR scans and weigh-ins captured by the UNO Q gateway |
+| Package tracking | One big QR per package (≤25 garments of one style): customer, site, quantity, production and delivery date. Each scan adds the place (check in), and repairs / write-offs are reported with a quantity. The screen shows money saved: repaired garments × purchase cost |
 
 Personalisation: a priority switch (Water / Emissions / Circularity & cost / Service) changes the headline, map, chart and order of observations. The default priority follows the customer's industry, e.g. water for Food & Beverage. **Export report** produces a print-ready PDF annual review that includes the assumptions and limitations.
+
+### Package tracking
+
+Scanning every garment is not realistic in daily work. So each package gets one big QR (`/p/PK0001`). It holds the same garments as the small QR codes inside.
+
+- **Check in**: the phone picks the place (customer site or Lindström laundry). This gives location history per package.
+- **Repair / write-off**: scan the package (or one garment's QR, which links to its package), type the number of garments and the reason.
+- **Weigh**: `/weigh?lot=PK0001` links a weigh-in to the package.
+- Money saved = repaired garments × purchase cost (estimated). Production and delivery dates are demo values (T7). Cleaning and delivery prices are a data gap (T8).
 
 ## Architecture
 

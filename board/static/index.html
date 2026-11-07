@@ -246,6 +246,17 @@ header select{font-size:16px;padding:8px 12px}
 .act-lbl{font-size:14px;color:var(--muted)}
 .act-pick{display:flex;gap:10px;flex-wrap:wrap} .act-pick select{flex:1;min-width:0;font-size:15px}
 .act-btns{display:flex;gap:10px;flex-wrap:wrap} .act-btns .btn,.act-pick .btn{font-size:15px;padding:9px 14px}
+.lot-path{grid-column:1/-1;width:100%;display:flex;align-items:flex-start;justify-content:center;gap:0;margin:6px 0 28px}
+.lot-step{display:flex;flex-direction:column;align-items:center;gap:6px;width:210px;text-align:center;opacity:0}
+.lot-step .ic{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;font-size:32px;background:#0e141c;border:2px solid var(--line)}
+.lot-step.now .ic{border-color:var(--accent);box-shadow:0 0 30px rgba(var(--accent-rgb),.45)}
+.lot-step b{font-size:18px} .lot-step span{font-size:14px;color:var(--muted)}
+.lot-line{flex:1;min-width:40px;max-width:140px;height:3px;background:var(--line);margin-top:35px;position:relative;overflow:hidden}
+.lot-line i{position:absolute;inset:0;background:var(--accent);transform:scaleX(0);transform-origin:left}
+.lot-big{grid-column:1/-1;text-align:center}
+.lot-big .n{font-size:clamp(56px,9vw,120px);font-weight:800;letter-spacing:-3px;line-height:1;color:var(--accent);text-shadow:0 0 40px rgba(var(--accent-rgb),.4);font-variant-numeric:tabular-nums}
+.lot-big .n.off{color:var(--amber);text-shadow:none}
+.lot-big .l{font-size:22px;color:var(--muted);margin-top:10px}
 .at-cust{position:absolute;top:max(20px,3vh);right:max(24px,5vw);display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;z-index:2}
 .at-cust button{background:rgba(14,20,28,.7);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:8px 16px;font-size:15px;cursor:pointer;backdrop-filter:blur(6px)}
 .at-cust button.on{color:#04121b;background:var(--accent);border-color:transparent;font-weight:700}
@@ -313,13 +324,22 @@ body.reading #report .rag{display:inline-block;width:11px;height:11px;border-rad
       <div class="card mapcard"><svg class="map" id="map"></svg><div class="hint" id="mapNote"></div></div>
       <div class="liveline" id="feed"></div>
       <div class="actions">
+        <div class="act" id="actLot">
+          <button class="act-head" onclick="toggleAct('actLot')" aria-expanded="false"><span class="act-ic">📦</span><span class="act-t"><b>Package tracking</b><span>One big QR per package: where it is, what is inside, money saved</span></span><span class="act-chev">⌄</span></button>
+          <div class="act-body">
+            <div class="act-row"><div class="qr" id="lotQR"></div><div class="act-txt"><b>With a phone</b>Scan the package code. The phone sends its place: check in, repair or write-off.</div></div>
+            <label class="act-lbl" for="selLot">Or pick a package</label>
+            <div class="act-pick"><select id="selLot"></select></div>
+            <div class="act-btns"><button class="btn primary" onclick="simulateLot('checkin')">📍 Check in</button><button class="btn" onclick="simulateLot('repair')">🔧 Repair 3</button><button class="btn" onclick="window.open('cards','_blank')">🖨 Print QR cards</button></div>
+          </div>
+        </div>
         <div class="act" id="actScan">
-          <button class="act-head" onclick="toggleAct('actScan')" aria-expanded="false"><span class="act-ic">👕</span><span class="act-t"><b>Garment scan</b><span>Scan a garment tag to see its year, its site and the whole account</span></span><span class="act-chev">⌄</span></button>
+          <button class="act-head" onclick="toggleAct('actScan')" aria-expanded="false"><span class="act-ic">👕</span><span class="act-t"><b>Single garment</b><span>Scan one garment's tag to see its year, its site and the whole account</span></span><span class="act-chev">⌄</span></button>
           <div class="act-body">
             <div class="act-row"><div class="qr" id="scanQR"></div><div class="act-txt"><b>With a phone</b>Scan this code, or the QR card on a garment, with the phone camera.</div></div>
             <label class="act-lbl" for="selGarment">Or pick a garment</label>
             <div class="act-pick"><select id="selGarment"></select><button class="btn primary" onclick="simulateScan($('#selGarment').value)">▶ Play this garment</button></div>
-            <div class="act-btns"><button class="btn" onclick="window.open('cards','_blank')">🖨 Print garment QR cards</button><button class="btn" onclick="simulateScan()">🎲 Random garment</button></div>
+            <div class="act-btns"><button class="btn" onclick="simulateScan()">🎲 Random garment</button></div>
           </div>
         </div>
         <div class="act" id="actWeigh">
@@ -474,13 +494,19 @@ function liveTotals(){
   const scans = S.events.filter(e=>e.type==='scan'), weighs = S.events.filter(e=>e.type==='weigh');
   const kg = weighs.reduce((a,e)=>a+(+e.kg||0),0), w = weighCalc(kg);
   const pcy = scans.reduce((a,e)=>a+((S.data.passports[e.asset_id]||{cy:[]}).cy.length),0);
-  return {scans:scans.length, weighs:weighs.length, kg, water:w.water, co2:w.co2, cycles:pcy};
+  const lotEv = t => S.events.filter(e=>e.type===t && (S.data.lots||{})[e.lot_id]);
+  const cost = e => (+e.qty||1) * S.data.products[S.data.lots[e.lot_id].p].cost_eur;
+  const rep = lotEv('repair'), off = lotEv('writeoff');
+  return {scans:scans.length, weighs:weighs.length, kg, water:w.water, co2:w.co2, cycles:pcy,
+          checkins:new Set(lotEv('checkin').map(e=>e.lot_id)).size, repaired:rep.reduce((a,e)=>a+(+e.qty||1),0), eur:rep.reduce((a,e)=>a+cost(e),0),
+          off:off.reduce((a,e)=>a+(+e.qty||1),0), offEur:off.reduce((a,e)=>a+cost(e),0)};
 }
 function renderLiveToday(bump){
   const box = $('#liveToday'); if(!box) return; const t = liveTotals();
-  if(!t.scans && !t.weighs){ box.hidden = true; return; }
+  if(!t.scans && !t.weighs && !t.checkins && !t.repaired && !t.off){ box.hidden = true; return; }
   box.hidden = false;
   const parts = []; if(t.scans) parts.push(`<b>${t.scans}</b> garment${t.scans===1?'':'s'} scanned`); if(t.weighs) parts.push(`<b>${fmt(t.kg,1)} kg</b> weighed · <b>+${fmt(t.water,0)} L</b> water saved`);
+  if(t.checkins) parts.push(`<b>${t.checkins}</b> package${t.checkins===1?'':'s'} checked in`); if(t.repaired) parts.push(`<b>${t.repaired}</b> repaired · <b>€${fmt(t.eur,0)}</b> saved`);
   box.innerHTML = `<span class="dot"></span>Live from the field today: ${parts.join(' · ')} ${badge('FIELD_SCAN_DEMO')}`;
   if(bump){ box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump'); }
 }
@@ -581,7 +607,11 @@ function renderPref(){
 function evLine(e){
   if(e.type==='scan'){ const p=S.data.passports[e.asset_id]; const pn = p? S.data.products[p.p].name : 'Unknown garment'; const sn = p? (siteById(p.s)||{}).city||p.s : '';
     return `▣ <b>${pn}</b> scanned in ${sn}`; }
-  return `⚖ <b>${fmt(e.kg,1)} kg</b> weighed · ${short(weighCalc(e.kg).water)} L water saved`;
+  if(e.type!=='weigh'){ const i = lotInfo(e.lot_id); if(!i) return `📦 ${e.lot_id||''}`; const q = +e.qty||1, where = placeName(i.l.c, e.location||e.site_id);
+    if(e.type==='checkin') return `📍 Package <b>${e.lot_id}</b> (${i.l.n} × ${i.pr.name}) checked in at ${where}`;
+    if(e.type==='repair') return `🔧 <b>${q} × ${i.pr.name}</b> repaired · package ${e.lot_id} · €${fmt(q*i.pr.cost_eur,0)} saved`;
+    return `❌ <b>${q} × ${i.pr.name}</b> written off · package ${e.lot_id} · €${fmt(q*i.pr.cost_eur,0)} value`; }
+  return `⚖ <b>${fmt(e.kg,1)} kg</b> weighed${e.lot_id?' · package '+e.lot_id:''} · ${short(weighCalc(e.kg).water)} L water saved`;
 }
 function renderFeed(){
   const evs = S.events.slice(-12).reverse();
@@ -634,7 +664,7 @@ function avgPieceKg(){ const ps = new Set(); Object.values(S.data.passports).for
 
 /* ---------- overlay scenes ---------- */
 function enqueue(ev){ S.queue.push(ev); if(!S.playing) playNext(); }
-function playNext(){ const ev = S.queue.shift(); if(!ev){ S.playing=false; return; } S.playing=true; const go = () => ev.type==='scan'? playScan(ev) : playWeigh(ev); if(AT.on) attractConverge(go); else go(); }
+function playNext(){ const ev = S.queue.shift(); if(!ev){ S.playing=false; return; } S.playing=true; const go = () => ev.type==='scan'? playScan(ev) : (ev.type==='weigh'? playWeigh(ev) : playLot(ev)); if(AT.on) attractConverge(go); else go(); }
 function closeOv(){ clearTimeout(S.ovTimer); $('#ov').classList.remove('show'); $('#ov').innerHTML=''; S.playing=false; renderAll(); if(S.queue.length) setTimeout(playNext,300); }
 function ovShell(tag, step, total){
   return `<div class="ov-top"><span class="tag">${tag}</span><span style="color:var(--muted);font-size:13px">${C().name}</span>
@@ -656,7 +686,7 @@ function scene1(c, ev){
   const ov = $('#ov'), n = c.cycles, R = 150, cx = 200, cy = 200;
   const body = document.createElement('div'); body.className='ov-body';
   body.innerHTML = `<div class="ov-vis"><svg viewBox="0 0 400 400" id="ring"></svg></div>
-   <div class="ov-text"><div class="eyebrow">Garment passport · ${c.p.cy[0][0].slice(0,4)}</div>
+   <div class="ov-text"><div class="eyebrow">Garment passport · ${c.p.cy[0][0].slice(0,4)}${c.p.k?' · 📦 package '+c.p.k:''}</div>
    <h2>${c.prod.name}<br><span style="color:var(--muted);font-weight:600;font-size:.6em">${ev.asset_id} · ${siteById(c.p.s).name}</span></h2>
    <div class="stats">
     <div class="stat"><div class="n acc" id="s1a">0</div><div class="l">wash & service cycles ${badge('SIMULATED')}</div></div>
@@ -730,7 +760,7 @@ function playWeigh(ev){
   const ov = $('#ov'), w = weighCalc(ev.kg); ov.classList.add('show');
   ov.innerHTML = ovShell('FIELD WEIGH-IN', 0, 1) + `<div class="ov-body"><div class="weigh-card">
     ${ev.photo?`<img class="photo" src="${ev.photo}" alt="scale photo">`:''}
-    <div class="eyebrow" style="color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-size:13px">Return bag weighed ${ev.reader==='gemini'?'· read from photo by Gemini':(ev.reader==='manual'?'· typed in':'')} ${badge('FIELD_SCAN_DEMO')}</div>
+    <div class="eyebrow" style="color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-size:13px">${ev.lot_id?'📦 '+ev.lot_id+' · ':''}Return bag weighed ${ev.reader==='gemini'?'· read from photo by Gemini':(ev.reader==='manual'?'· typed in':'')} ${badge('FIELD_SCAN_DEMO')}</div>
     <div class="kg"><span id="wkg">0</span><span style="font-size:.35em;color:var(--muted);letter-spacing:0"> kg</span></div>
     <div class="arrow">≈ ${fmt(w.pieces,0)} garments ${badge('ESTIMATED')} &nbsp;→&nbsp; washed by Lindström instead of ${B().name.toLowerCase()}</div>
     <div class="saved"><span id="wsv">0</span> L water saved</div>
@@ -739,6 +769,30 @@ function playWeigh(ev){
   ov.onclick = e => { if(e.target.closest('.badge')) return; closeOv(); };
   countUp($('#wkg'), ev.kg, x=>fmt(x,1), 1500); setTimeout(()=>countUp($('#wsv'), w.water, x=>fmt(x,0), 1800), 700);
   clearTimeout(S.ovTimer); S.ovTimer = setTimeout(closeOv, 9000);
+}
+
+function playLot(ev){
+  const i = lotInfo(ev.lot_id); if(!i){ toast('Unknown package '+ev.lot_id); S.playing=false; return; }
+  if(i.l.c !== S.cust) setCustomer(i.l.c);
+  closeScale(); S.highlight = i.l.s;
+  const ov = $('#ov'), q = +ev.qty||1, where = placeName(i.l.c, ev.location||ev.site_id), when = (ev.ts||'').slice(0,16).replace('T',' ');
+  const tag = {checkin:'PACKAGE CHECK-IN', repair:'PACKAGE · REPAIR', writeoff:'PACKAGE · WRITE-OFF'}[ev.type];
+  const steps = [['🏭','Produced', i.l.prod+' '+badge('TEAM_ASSUMPTION')], ['🚚','Delivered to '+(i.site.city||i.l.s), i.l.del+' '+badge('TEAM_ASSUMPTION')],
+                 [{checkin:'📍',repair:'🔧',writeoff:'❌'}[ev.type], {checkin:'Checked in',repair:'Repaired',writeoff:'Written off'}[ev.type], where+'<br>'+when]];
+  const path = steps.map((s,k)=>`${k?'<div class="lot-line"><i></i></div>':''}<div class="lot-step ${k===2?'now':''}"><div class="ic">${s[0]}</div><b>${s[1]}</b><span>${s[2]}</span></div>`).join('');
+  let big;
+  if(ev.type==='checkin') big = `<div class="n" id="lotN">0</div><div class="l">${i.pr.name} garments in this package · ${i.cust.name} · ${i.site.name}</div>`;
+  else if(ev.type==='repair') big = `<div class="n" id="lotN">€0</div><div class="l">saved: ${q} × ${i.pr.name} repaired${ev.detail?' ('+ev.detail.toLowerCase()+')':''} instead of bought new ${badge('ESTIMATED','circularity')}<br>≈ ${fmt(q*i.pr.footprint_kgco2e,1)} kg CO₂e avoided</div>`;
+  else big = `<div class="n off" id="lotN">€0</div><div class="l">replacement value · ${q} × ${i.pr.name} written off${ev.detail?' ('+ev.detail.toLowerCase()+')':''} ${badge('ESTIMATED')}</div>`;
+  ov.classList.add('show');
+  ov.innerHTML = ovShell(tag+' · '+ev.lot_id, 0, 1) + `<div class="ov-body" style="display:flex;flex-direction:column;justify-content:center"><div class="lot-path">${path}</div><div class="lot-big">${big}</div></div>
+   <div class="ov-foot"><span>One QR on the package = ${i.l.n} garments. The phone that scans it adds the place. ${badge('FIELD_SCAN_DEMO')}</span><span>click to close</span></div>`;
+  ov.querySelectorAll('.lot-step').forEach((e,k)=>e.animate([{opacity:0,transform:'translateY(12px)'},{opacity:1,transform:'none'}],{duration:500,delay:250+k*700,fill:'forwards'}));
+  ov.querySelectorAll('.lot-line i').forEach((e,k)=>e.animate([{transform:'scaleX(0)'},{transform:'scaleX(1)'}],{duration:550,delay:650+k*700,fill:'forwards'}));
+  const target = ev.type==='checkin' ? i.l.n : q*i.pr.cost_eur;
+  setTimeout(()=>countUp($('#lotN'), target, ev.type==='checkin'? x=>Math.round(x) : x=>'€'+fmt(x,0), 1400), 1900);
+  ov.onclick = e => { if(e.target.closest('.badge')) return; closeOv(); };
+  clearTimeout(S.ovTimer); S.ovTimer = setTimeout(closeOv, 10000);
 }
 
 /* ---------- events (gateway) ---------- */
@@ -785,7 +839,7 @@ function attractFrame(now){
   AT.raf = requestAnimationFrame(attractFrame);
 }
 function toggleAct(id){
-  ['actScan','actWeigh'].forEach(k=>{ const el=$('#'+k), open = k===id ? !el.classList.contains('open') : false; el.classList.toggle('open', open); el.querySelector('.act-head').setAttribute('aria-expanded', open); });
+  ['actLot','actScan','actWeigh'].forEach(k=>{ const el=$('#'+k), open = k===id ? !el.classList.contains('open') : false; el.classList.toggle('open', open); el.querySelector('.act-head').setAttribute('aria-expanded', open); });
 }
 function fillGarments(){
   const sel = $('#selGarment'); if(!sel) return;
@@ -793,10 +847,30 @@ function fillGarments(){
   if(ids.length < 6){ const more = Object.keys(S.data.passports).filter(a=>S.data.passports[a].c===S.cust && !ids.includes(a)).slice(0, 6-ids.length); ids = ids.concat(more); }
   sel.innerHTML = ids.map(a=>{ const p=S.data.passports[a], pr=S.data.products[p.p], st=siteById(p.s)||{}; return `<option value="${a}">${pr.name} · ${st.city||p.s} · ${p.cy.length} cycles</option>`; }).join('');
 }
+function lotsOf(cid){ return Object.entries(S.data.lots||{}).filter(([k,l])=>l.c===cid); }
+function lotInfo(id){ const l = (S.data.lots||{})[id]; if(!l) return null; const pr = S.data.products[l.p], c = S.data.customers[l.c], st = c.sites.find(x=>x.id===l.s)||{};
+  return {id, l, pr, cust:c, site:st}; }
+function placeName(cid, loc){ const c = S.data.customers[cid]; const st = c && c.sites.find(x=>x.id===loc); if(st) return st.name;
+  return S.data.laundries[loc] ? 'Lindström laundry · '+S.data.laundries[loc].name : (loc||''); }
+function fillLots(){
+  const sel = $('#selLot'); if(!sel) return; const demo = (S.data.demo_lots||[]).filter(k=>(S.data.lots[k]||{}).c===S.cust);
+  const ids = [...demo, ...lotsOf(S.cust).map(x=>x[0]).filter(k=>!demo.includes(k))].slice(0, 30);
+  sel.innerHTML = ids.map(k=>{ const i = lotInfo(k); return `<option value="${k}">${k} · ${i.l.n} × ${i.pr.name} · ${i.site.city||i.l.s}</option>`; }).join('');
+  const qr = () => { if(GATEWAY_QR && sel.value) drawQR($('#lotQR'), location.origin + '/p/' + sel.value, 96); else $('#lotQR').hidden = true; };
+  sel.onchange = qr; qr();
+}
+function simulateLot(action){
+  const lid = $('#selLot').value, i = lotInfo(lid); if(!i) return;
+  const qty = action==='repair' ? Math.min(3, i.l.n) : i.l.n, detail = action==='repair' ? 'ZIPPER' : null;
+  const loc = action==='checkin' ? i.site.laundry || i.l.s : i.l.s;
+  const local = () => onEvent({id:simId--, type:action, lot_id:lid, qty, location:loc, site_id:i.l.s, detail, ts:new Date().toISOString()});
+  if(/^https?:/.test(location.protocol)) fetch('api/lot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lot_id:lid,action,qty,detail,location:loc})}).then(r=>{ if(!r.ok) throw 0; }).catch(local);
+  else local();
+}
 function setCustomer(cid){
   if(!S.data.customers[cid]) return;
   S.cust = cid; $('#selCust').value = cid; S.highlight = null; closeDrawer();
-  setPrio(PRIO_DEFAULT[C().industry]||'water'); fillGarments();
+  setPrio(PRIO_DEFAULT[C().industry]||'water'); fillGarments(); fillLots();
   const demo = (S.data.demo_assets||[]).find(a=>(S.data.passports[a]||{}).c===cid);
   if(GATEWAY_QR && demo) drawQR($('#scanQR'), location.origin + '/s/' + demo, 96);
   if(AT.on){ attractTexts(); attractBuild(); }
@@ -898,7 +972,7 @@ function buildReport(){
    <tr><td>Textile waste allocated to the account</td><td>${fmt(c.waste_allocated_kg)} kg ${st('ESTIMATED')}</td></tr></table>
   <h2>3. Questions for the steering committee</h2>
   <table><tr><th>Observation</th><th>Question</th></tr>${c.observations.map(o=>`<tr><td>${o.text} ${st(o.status)}</td><td>${o.question}</td></tr>`).join('')}</table>
-  ${S.events.length?`<h2>4. Field evidence captured</h2><p>${(t=>`${t.scans} garment scans · ${fmt(t.kg,1)} kg weighed · about ${fmt(t.water,0)} L water and ${fmt(t.co2,1)} kg CO₂e saved vs ${b.name.toLowerCase()} (estimated)`)(liveTotals())}</p><table><tr><th>Time</th><th>Event</th></tr>${S.events.map(e=>`<tr><td>${(e.ts||'').replace('T',' ').slice(0,16)}</td><td>${e.type==='scan'?'Garment scan '+e.asset_id:'Weigh-in '+fmt(e.kg,1)+' kg'} ${st('FIELD_SCAN_DEMO')}</td></tr>`).join('')}</table>`:''}
+  ${S.events.length?`<h2>4. Field evidence captured</h2><p>${(t=>`${t.scans} garment scans · ${fmt(t.kg,1)} kg weighed · about ${fmt(t.water,0)} L water and ${fmt(t.co2,1)} kg CO₂e saved vs ${b.name.toLowerCase()} (estimated)`+(t.checkins||t.repaired||t.off?` · ${t.checkins} packages checked in · ${t.repaired} garments repaired, about €${fmt(t.eur,0)} of new garments not bought`+(t.off?` · ${t.off} written off (€${fmt(t.offEur,0)} replacement value)`:''):''))(liveTotals())}</p><table><tr><th>Time</th><th>Event</th></tr>${S.events.map(e=>`<tr><td>${(e.ts||'').replace('T',' ').slice(0,16)}</td><td>${e.type==='scan'?'Garment scan '+e.asset_id:(e.type==='weigh'?'Weigh-in '+fmt(e.kg,1)+' kg':evLine(e).replace(/<[^>]+>/g,''))} ${st('FIELD_SCAN_DEMO')}</td></tr>`).join('')}</table>`:''}
   <h2 class="pg">Site drill-down (sorted by ${PRIO[S.prio].label.toLowerCase()})</h2>
   <table><tr><th>Site</th><th>Garments</th><th>On time</th><th>No scan / mo</th><th>Water saved (L)</th><th>CO₂e saved (kg)</th><th>Repairs</th></tr>
    ${sites.map(s=>`<tr><td>${s.name}</td><td>${fmt(s.service.garments_tracked)}</td><td>${fmt(s.service.on_time_pct,1)}%</td><td>${fmt(s.service.no_scan_avg)}</td><td>${fmt(s.impact.vs[S.base].base.water_saved_l)}</td><td>${fmt(s.impact.vs[S.base].base.co2e_saved_kg)}</td><td>${fmt(s.repairs.count)}</td></tr>`).join('')}</table>
@@ -930,7 +1004,7 @@ function init(data){
   setPrio(PRIO_DEFAULT[C().industry]||'water');
   if(GATEWAY_QR){ drawQR($('#weighQR'), location.origin + '/weigh', 96); drawQR($('#scanQR'), location.origin + '/s/' + (((S.data.demo_assets||[]).find(a=>(S.data.passports[a]||{}).c===S.cust))||''), 96); }
   else { $('#weighQR').hidden = true; $('#scanQR').hidden = true; }
-  fillGarments(); toggleAct('actScan');
+  fillGarments(); fillLots(); toggleAct('actLot');
   connect();
   setupAttract();
   const q = new URLSearchParams(location.search);

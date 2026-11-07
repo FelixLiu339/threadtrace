@@ -214,6 +214,37 @@ def main():
                                      "cy": [[str(t.pickup_timestamp)[:10], int(t.cycle_hours), 1 if t.performance_flag == "ON_TIME" else 0]
                                             for t in g.itertuples()]}
 
+    # Packages: garments are delivered in packages of up to 25 pieces of one product for one site.
+    # Each package QR lists the same garments as the garment QRs inside it.
+    # Production and delivery dates are NOT in the data pack: demo values derived from first service date.
+    import hashlib
+    lots, asset_lot = {}, {}
+    sc_sorted = sc.sort_values(["customer_id", "site_id", "product_id", "asset_id"])
+    first_use = sc.groupby("asset_id").pickup_timestamp.min()
+    for (cid, sid, pid), g in sc_sorted.groupby(["customer_id", "site_id", "product_id"], sort=True):
+        assets = sorted(g.asset_id.unique())
+        for k in range(0, len(assets), 25):
+            chunk = assets[k:k + 25]
+            lid = f"PK{len(lots) + 1:04d}"
+            h = int(hashlib.md5(lid.encode()).hexdigest(), 16)
+            fu = min(first_use[a] for a in chunk)
+            lots[lid] = {"c": cid, "s": sid, "p": pid, "n": len(chunk),
+                         "prod": (fu - pd.Timedelta(days=60 + h % 240)).date().isoformat(),
+                         "del": (fu - pd.Timedelta(days=2 + h % 6)).date().isoformat(),
+                         "a": chunk}
+            for a in chunk:
+                asset_lot[a] = lid
+    for aid, p in out["passports"].items():
+        p["k"] = asset_lot.get(aid)
+    out["lots"] = lots
+    out["assumptions"] += [
+        {"id": "T6", "text": "Packages", "rule": "A package holds up to 25 garments of one product for one site; the package QR and the garment QRs inside it share the package id.",
+         "confidence": "Demo", "source": "TEAM_ASSUMPTION"},
+        {"id": "T7", "text": "Production and delivery dates", "rule": "Not in the data pack. Demo dates derived from each package's first service date.",
+         "confidence": "Demo", "source": "TEAM_ASSUMPTION"},
+        {"id": "T8", "text": "Money saved", "rule": "Repairs: garments repaired x synthetic purchase cost (replacement avoided). Write-offs: garments x purchase cost (replacement value). Cleaning and delivery prices are not in the data pack and are listed as a data gap.",
+         "confidence": "Low-Medium", "source": "TEAM_ASSUMPTION"}]
+
     # A few hand-picked demo garments (one per product type at NorthStar Turku and elsewhere)
     demo = []
     for cid, pid in [("CUST001", "P1001"), ("CUST001", "P1002"), ("CUST001", "P1004"), ("CUST002", "P1003"), ("CUST003", "P1005")]:
@@ -222,6 +253,7 @@ def main():
         if cand:
             demo.append(cand[0][0])
     out["demo_assets"] = demo
+    out["demo_lots"] = list(dict.fromkeys(asset_lot[a] for a in demo if a in asset_lot))
 
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))
