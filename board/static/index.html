@@ -213,6 +213,19 @@ header select{font-size:16px;padding:8px 12px}
 .livetoday b{font-family:var(--num);font-variant-numeric:tabular-nums}
 .livetoday.bump{animation:bump .9s}
 @keyframes bump{30%{transform:scale(1.03);border-color:var(--green)}}
+.attract{position:fixed;inset:0;z-index:44;background:radial-gradient(ellipse at 60% 50%,#0b1622 0%,#04070b 75%);cursor:pointer;overflow:hidden}
+.attract[hidden]{display:none}
+#attractCv{position:absolute;inset:0;width:100%;height:100%}
+.at-text{position:absolute;left:max(24px,6vw);top:46%;transform:translateY(-50%);max-width:min(1000px,86vw);pointer-events:none;text-shadow:0 2px 30px rgba(0,0,0,.9)}
+.at-eyebrow{font-size:17px;color:var(--muted);margin-bottom:14px}
+.at-h{font-family:var(--num);font-size:clamp(38px,5.2vw,84px);font-weight:800;letter-spacing:-2px;line-height:1.02;color:#fff}
+.at-h span{color:var(--accent);text-shadow:0 0 40px rgba(var(--accent-rgb),.45)}
+.at-sub{font-size:20px;color:var(--text);margin-top:22px;opacity:.85}
+.at-qr{position:absolute;right:max(24px,5vw);bottom:max(24px,6vh);display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text);font-size:16px;text-align:center}
+.at-qr .qr{background:#fff;padding:10px;border-radius:16px;display:grid;place-items:center;box-shadow:0 0 40px rgba(var(--accent-rgb),.35)}
+.at-qr span{color:var(--muted);font-size:14px}
+.at-qr[hidden]{display:none}
+.attract.fade .at-text,.attract.fade .at-qr{transition:opacity .5s;opacity:0}
 /* report (print) */
 #report{display:none}
 @media print{
@@ -276,9 +289,18 @@ header select{font-size:16px;padding:8px 12px}
       <div class="card"><h3>What the labels mean</h3><div class="legendlist" id="labels"></div></div>
     </div>
   </details>
-  <div class="demo-keys">Keys: <b>S</b> scan · <b>W</b> weigh-in · <b>Esc</b> close</div>
+  <div class="demo-keys">Keys: <b>A</b> attract screen · <b>S</b> scan · <b>W</b> weigh-in · <b>Esc</b> close</div>
 </div>
 
+<div class="attract" id="attract" hidden>
+  <canvas id="attractCv"></canvas>
+  <div class="at-text">
+    <div class="at-eyebrow" id="atEyebrow"></div>
+    <h2 class="at-h">Scan one garment.<br><span>See the value of the whole account.</span></h2>
+    <div class="at-sub" id="atSub"></div>
+  </div>
+  <div class="at-qr"><b>Scan me with your phone camera</b><div class="qr" id="atQR"></div><span>or tap anywhere to explore</span></div>
+</div>
 <div class="scalebox" id="scalebox" hidden><div class="scalebar"><span>Weigh station · photograph this scale with the phone weigh-in page</span><button class="btn" onclick="closeScale()">Close</button></div><iframe id="scaleframe" title="Simulated scale"></iframe></div>
 <div class="drawer" id="drawer"></div>
 <div class="ov" id="ov"></div>
@@ -555,7 +577,7 @@ function avgPieceKg(){ const ps = new Set(); Object.values(S.data.passports).for
 
 /* ---------- overlay scenes ---------- */
 function enqueue(ev){ S.queue.push(ev); if(!S.playing) playNext(); }
-function playNext(){ const ev = S.queue.shift(); if(!ev){ S.playing=false; return; } S.playing=true; ev.type==='scan'? playScan(ev) : playWeigh(ev); }
+function playNext(){ const ev = S.queue.shift(); if(!ev){ S.playing=false; return; } S.playing=true; const go = () => ev.type==='scan'? playScan(ev) : playWeigh(ev); if(AT.on) attractConverge(go); else go(); }
 function closeOv(){ clearTimeout(S.ovTimer); $('#ov').classList.remove('show'); $('#ov').innerHTML=''; S.playing=false; renderAll(); if(S.queue.length) setTimeout(playNext,300); }
 function ovShell(tag, step, total){
   return `<div class="ov-top"><span class="tag">${tag}</span><span style="color:var(--muted);font-size:13px">${C().name}</span>
@@ -671,6 +693,63 @@ function onEvent(ev, replay){
 function loadQR(cb){ if(window.QRCode) return cb(); const add=(src,next)=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>window.QRCode?cb():next&&next(); s.onerror=()=>next&&next(); document.head.appendChild(s); };
   add('vendor/qrcode.min.js', ()=>add('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', null)); }
 function drawQR(el, text, size){ loadQR(()=>{ el.innerHTML=''; new QRCode(el,{text, width:size, height:size, colorDark:'#0b1118', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M}); }); }
+/* ---------- attract screen (idle) ---------- */
+const GATEWAY_QR = /^https?:/.test(location.protocol);
+const AT = {on:false, raf:0, parts:[], t0:0, mouse:{x:-9999,y:-9999}, converge:null, idle:0};
+function attractBuild(){
+  const cv = $('#attractCv'), dpr = Math.min(2, window.devicePixelRatio||1);
+  cv.width = innerWidth*dpr; cv.height = innerHeight*dpr; AT.dpr = dpr;
+  const c = C(), sites = c.sites, n = c.service.garments_tracked;
+  const vals = sites.map(s=>metric(s)), lo = Math.min(...vals), hi = Math.max(...vals);
+  const threads = sites.map((s,k)=>({ y: 0.12 + 0.76*(k+0.5)/sites.length, amp: 0.05 + 0.08*((k*37)%11)/10,
+     f: 0.7 + ((k*53)%7)/7, ph: k*1.7, sp: 0.018 + ((k*29)%5)*0.004, b: hi===lo?1:(metric(s)-lo)/(hi-lo) }));
+  AT.parts = Array.from({length:n}, (_,i)=>({k: i%threads.length, u: Math.random(), j: (Math.random()-.5)*0.018, r: 1.3+Math.random()*1.6}));
+  AT.threads = threads;
+}
+function attractFrame(now){
+  const cv = $('#attractCv'), g = cv.getContext('2d'), W = cv.width, H = cv.height, d = AT.dpr;
+  const rgb = getComputedStyle(document.body).getPropertyValue('--accent-rgb').trim() || '56,189,248';
+  const t = (now - AT.t0)/1000;
+  g.fillStyle = 'rgba(4,7,11,0.22)'; g.fillRect(0,0,W,H);           // motion trails
+  const mx = AT.mouse.x*d, my = AT.mouse.y*d, cv0 = AT.converge;
+  const ck = cv0 ? Math.min(1,(now-cv0.t)/900) : 0, ce = ck<.5? 2*ck*ck : 1-Math.pow(-2*ck+2,2)/2;
+  for(const p of AT.parts){
+    const th = AT.threads[p.k]; p.u += th.sp*0.016; if(p.u>1.1) p.u -= 1.2;
+    let x = (p.u*1.2-0.1)*W, y = (th.y + p.j + th.amp*Math.sin(p.u*th.f*6.283 + t*0.6 + th.ph))*H;
+    const dx = x-mx, dy = y-my, dd = dx*dx+dy*dy, R = 140*d;
+    if(dd < R*R){ const f = (1 - Math.sqrt(dd)/R)*40*d; const m = Math.sqrt(dd)||1; x += dx/m*f; y += dy/m*f; }
+    if(cv0){ x += (W/2-x)*ce; y += (H/2-y)*ce; }
+    const a = 0.4 + 0.6*th.b;
+    g.fillStyle = `rgba(${rgb},${a})`; g.fillRect(x, y, p.r*d, p.r*d);
+  }
+  if(cv0 && ck>=1){ const k2 = Math.min(1,(now-cv0.t-900)/500); g.fillStyle = `rgba(255,255,255,${0.9*(1-k2)})`; g.beginPath(); g.arc(W/2,H/2,(20+200*k2)*d,0,7); g.fill();
+    if(k2>=1){ const cb = cv0.cb; AT.converge = null; hideAttract(); cb&&cb(); return; } }
+  AT.raf = requestAnimationFrame(attractFrame);
+}
+function showAttract(){
+  if(AT.on || !S.data) return; if($('#ov').classList.contains('show') || !$('#scalebox').hidden) return;
+  closeDrawer(); AT.on = true; const box = $('#attract'); box.hidden = false; box.classList.remove('fade');
+  const c = C();
+  $('#atEyebrow').textContent = `${c.name} · 2025 annual review`;
+  $('#atSub').textContent = `${fmt(c.service.garments_tracked)} garments · ${c.sites.length} sites · every dot is one garment`;
+  const demo = (S.data.demo_assets||[]).find(a=>(S.data.passports[a]||{}).c===S.cust) || (S.data.demo_assets||[])[0];
+  if(GATEWAY_QR && demo){ $('.at-qr').hidden = false; drawQR($('#atQR'), location.origin + '/s/' + demo, 160); } else $('.at-qr').hidden = true;
+  attractBuild(); AT.t0 = performance.now();
+  const g = $('#attractCv').getContext('2d'); g.fillStyle = '#04070b'; g.fillRect(0,0,$('#attractCv').width,$('#attractCv').height);
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){ attractFrame(performance.now()); cancelAnimationFrame(AT.raf); }
+  else AT.raf = requestAnimationFrame(attractFrame);
+}
+function hideAttract(){ AT.on = false; cancelAnimationFrame(AT.raf); $('#attract').hidden = true; AT.idle = Date.now(); }
+function attractConverge(cb){ if(!AT.on){ cb(); return; } $('#attract').classList.add('fade'); AT.converge = {t: performance.now(), cb}; if(matchMedia('(prefers-reduced-motion: reduce)').matches){ hideAttract(); cb(); } }
+function setupAttract(){
+  const bump = () => { AT.idle = Date.now(); };
+  ['mousemove','keydown','touchstart','click','wheel'].forEach(ev=>addEventListener(ev, bump, {passive:true}));
+  addEventListener('mousemove', e=>{ AT.mouse.x = e.clientX; AT.mouse.y = e.clientY; });
+  $('#attract').addEventListener('click', e=>{ if(AT.converge) return; hideAttract(); });
+  addEventListener('resize', ()=>{ if(AT.on) attractBuild(); });
+  setInterval(()=>{ if(!AT.on && !S.playing && Date.now()-AT.idle > 90000) showAttract(); }, 5000);
+  AT.idle = Date.now();
+}
 function openScale(){ const f=$('#scaleframe'); if(!f.src) f.src='scale'; $('#scalebox').hidden=false; }
 function closeScale(){ $('#scalebox').hidden=true; }
 let maxId = 0;
@@ -764,11 +843,14 @@ function init(data){
   $('#kpiSave').onclick = () => { const name=$('#kpiName').value.trim()||$('#kpiMetric').selectedOptions[0].text, t=parseFloat($('#kpiTarget').value);
     if(isNaN(t)){ toast('Enter a target'); return; } S.kpis.push({cust:S.cust,name,metric:$('#kpiMetric').value,target:t}); store('kpis',S.kpis); $('#modal').classList.remove('show'); renderFocus(); };
   document.addEventListener('keydown', e=>{ if(e.target.matches('input,select')) return;
-    if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='Escape'){ closeOv(); closeDrawer(); closeScale(); $('#pop').style.display='none'; } });
+    if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='a'||e.key==='A'){ AT.on? hideAttract() : showAttract(); }
+    if(e.key==='Escape'){ closeOv(); closeDrawer(); closeScale(); if(AT.on) hideAttract(); $('#pop').style.display='none'; } });
   setPrio(PRIO_DEFAULT[C().industry]||'water');
   if(/^https?:/.test(location.protocol)) drawQR($('#weighQR'), location.origin + '/weigh', 96); else $('.phoneqr').hidden = true;
   connect();
-  const q = new URLSearchParams(location.search); if(q.get('scan')) setTimeout(()=>simulateScan(q.get('scan')),600); if(q.get('weigh')) setTimeout(()=>simulateWeigh(+q.get('weigh')),600);
+  setupAttract();
+  const q = new URLSearchParams(location.search);
+  if(!q.get('scan') && !q.get('weigh') && q.get('attract')!=='0') setTimeout(showAttract, 400); if(q.get('scan')) setTimeout(()=>simulateScan(q.get('scan')),600); if(q.get('weigh')) setTimeout(()=>simulateWeigh(+q.get('weigh')),600);
 }
 fetch('data.json').then(r=>r.json()).then(init).catch(e=>{ document.body.innerHTML = `<div style="padding:40px;color:#e9eff6;font-family:sans-serif">Could not load data.json (${e}). Serve this folder over http, e.g. <code>python3 server.py</code>.</div>`; });
 </script>
