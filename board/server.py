@@ -109,24 +109,23 @@ def passport_summary(aid):
     return {"product": prod["name"], "site": site["name"], "customer": cust["name"], "cycles": len(p["cy"]), "site_id": p["s"]}
 
 
-_model = {"name": GEMINI_MODEL}
+_model = {"name": GEMINI_MODEL, "candidates": []}
 
 
-def pick_gemini_model():
-    """Ask the API which models this key can use and pick a current Flash model."""
+def list_gemini_models():
+    """Ask the API which models this key can use; best Flash models first."""
     url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_KEY}&pageSize=200"
     with urllib.request.urlopen(url, timeout=15) as r:
         models = json.load(r).get("models", [])
     names = [m["name"].split("/", 1)[-1] for m in models
              if "generateContent" in m.get("supportedGenerationMethods", [])]
     def score(n):
-        bad = any(w in n for w in ("tts", "audio", "image", "live", "embedding", "thinking", "exp", "preview"))
-        return (("flash" in n) and not bad, "lite" not in n, "latest" in n, n)
-    names.sort(key=score, reverse=True)
-    if not names:
-        raise RuntimeError("no model with generateContent for this key")
-    print(f"[gemini] available: {names[:8]} -> using {names[0]}", flush=True)
-    return names[0]
+        bad = any(w in n for w in ("tts", "audio", "image-gen", "live", "embedding", "thinking", "exp"))
+        return (("flash" in n) and not bad, "preview" not in n, "latest" in n, n)
+    names = [n for n in sorted(names, key=score, reverse=True)
+             if "flash" in n and not any(w in n for w in ("tts", "audio", "live", "embedding"))] or names
+    print(f"[gemini] candidates: {names[:8]}", flush=True)
+    return names
 
 
 def _gemini_call(model, body):
@@ -137,7 +136,8 @@ def _gemini_call(model, body):
 
 
 def read_scale_with_gemini(jpeg_b64):
-    """Ask Gemini to read the number on the scale display. Returns (kg or None, note)."""
+    """Ask Gemini to read the number on the scale display. Returns (kg or None, note).
+    Tries the current model first, then other available Flash models on 404 / 429 / 5xx."""
     if not GEMINI_KEY:
         return None, "GEMINI_API_KEY not set"
     prompt = ("This photo shows a weighing scale display. Read the weight shown. "
@@ -145,23 +145,37 @@ def read_scale_with_gemini(jpeg_b64):
               "Convert to kilograms. If no readable scale is visible, use null.")
     body = {"contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/jpeg", "data": jpeg_b64}}]}],
             "generationConfig": {"response_mime_type": "application/json", "temperature": 0}}
-    try:
+    tried, last_err = [], "no model tried"
+    queue = [_model["name"]] + [m for m in _model["candidates"] if m != _model["name"]]
+    while queue and len(tried) < 5:
+        model = queue.pop(0)
+        if model in tried:
+            continue
+        tried.append(model)
         try:
-            out = _gemini_call(_model["name"], body)
+            out = _gemini_call(model, body)
+            text = out["candidates"][0]["content"]["parts"][0]["text"]
+            m = re.search(r"\{.*\}", text, re.S)
+            val = json.loads(m.group(0) if m else text).get("kg")
+            _model["name"] = model
+            return (float(val) if val is not None else None), "gemini"
         except urllib.error.HTTPError as e:
-            if e.code not in (400, 404):
-                raise
-            _model["name"] = pick_gemini_model()   # model retired or unknown: discover a current one
-            out = _gemini_call(_model["name"], body)
-        text = out["candidates"][0]["content"]["parts"][0]["text"]
-        m = re.search(r"\{.*\}", text, re.S)
-        val = json.loads(m.group(0) if m else text).get("kg")
-        return (float(val) if val is not None else None), "gemini"
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode(errors="ignore")[:160]
-        return None, f"gemini error {e.code} ({_model['name']}): {detail}"
-    except Exception as e:  # network, quota, parsing
-        return None, f"gemini error ({_model['name']}): {e}"
+            last_err = f"{e.code} ({model}): {e.read().decode(errors='ignore')[:120]}"
+            print(f"[gemini] {last_err}", flush=True)
+            if e.code in (400, 404, 429, 500, 503) and not _model["candidates"]:
+                try:
+                    _model["candidates"] = list_gemini_models()
+                except Exception as le:
+                    last_err += f"; list models failed: {le}"
+            if e.code in (400, 404, 429, 500, 503):
+                queue += [c for c in _model["candidates"] if c not in tried and c not in queue]
+                time.sleep(0.4)
+                continue
+            break
+        except Exception as e:  # network, parsing
+            last_err = f"({model}): {e}"
+            break
+    return None, f"gemini error {last_err}"
 
 
 PHONE_CSS = """<meta name="viewport" content="width=device-width,initial-scale=1"><style>
@@ -190,16 +204,18 @@ PAGE_WEIGH = f"""<!doctype html><title>ThreadTrace weigh-in</title>{PHONE_CSS}
 <label class=b id=lab>📷 Take photo of scale<input id=cam type=file accept="image/*" capture="environment" hidden></label>
 <p class=m style="margin-top:22px">Or type the weight:</p><input id=kg type=number step=0.1 inputmode=decimal placeholder="kg">
 <button class="b g" id=send>Send weight</button>
-<img id=prev hidden><p class=m id=st></p>
+<img id=prev hidden><p class=m id=st></p><button class="b g" id=retry hidden>↻ Try reading this photo again</button>
 <script>
 const st=document.getElementById('st');
 function shrink(file){{return new Promise(res=>{{const img=new Image();img.onload=()=>{{const k=Math.min(1,1024/Math.max(img.width,img.height));
  const c=document.createElement('canvas');c.width=img.width*k;c.height=img.height*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height);
  res(c.toDataURL('image/jpeg',.82));}};img.src=URL.createObjectURL(file);}});}}
 async function send(body){{st.textContent='Sending…';const r=await fetch('/api/weigh',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
- const j=await r.json();st.innerHTML=j.ok?`✓ ${{j.event.kg}} kg sent to the screen (${{j.note}})`:`Could not read the weight (${{j.note}}). Type it below and press Send.`;}}
+ const j=await r.json();st.innerHTML=j.ok?`✓ ${{j.event.kg}} kg sent to the screen (${{j.note}})`:`Could not read the weight (${{j.note}}). Tap "Try again" or type the weight above.`;
+ document.getElementById('retry').hidden=j.ok||!body.image;}}
+let lastImg=null;document.getElementById('retry').onclick=()=>{{if(lastImg){{st.textContent='Trying again…';send({{image:lastImg}});}}}};
 document.getElementById('cam').onchange=async e=>{{const f=e.target.files[0];if(!f)return;const d=await shrink(f);const p=document.getElementById('prev');p.src=d;p.hidden=false;
- st.textContent='Reading the scale…';send({{image:d.split(',')[1],kg:parseFloat(document.getElementById('kg').value)||null}});}};
+ st.textContent='Reading the scale…';lastImg=d.split(',')[1];send({{image:lastImg,kg:parseFloat(document.getElementById('kg').value)||null}});}};
 document.getElementById('send').onclick=()=>{{const v=parseFloat(document.getElementById('kg').value);if(!v){{st.textContent='Enter a weight first.';return;}}send({{kg:v}});}};
 </script>"""
 
