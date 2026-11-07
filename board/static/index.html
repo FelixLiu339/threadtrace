@@ -201,6 +201,10 @@ header select{font-size:16px;padding:8px 12px}
 .seg{flex-wrap:wrap}
 @media (max-width:1100px){.main,.more-grid{grid-template-columns:1fr}}
 @media (max-width:620px){.pills{grid-template-columns:1fr}.seg button{padding:7px 10px;font-size:14px}.herocard{padding:20px}}
+.scalebox{position:fixed;inset:0;z-index:45;background:#3a4048;display:flex;flex-direction:column}
+.scalebox[hidden]{display:none}
+.scalebar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;color:#e9eff6;background:#2b3038;font-size:16px}
+.scalebox iframe{flex:1;border:0;width:100%}
 /* report (print) */
 #report{display:none}
 @media print{
@@ -248,7 +252,7 @@ header select{font-size:16px;padding:8px 12px}
     <div class="col">
       <div class="card mapcard"><svg class="map" id="map"></svg><div class="hint" id="mapNote"></div></div>
       <div class="liveline" id="feed"></div>
-      <div class="demo"><button class="btn" onclick="simulateScan()">▣ Try a garment scan</button><button class="btn" onclick="simulateWeigh()">⚖ Try a weigh-in</button></div>
+      <div class="demo"><button class="btn" onclick="simulateScan()">▣ Try a garment scan</button><button class="btn" onclick="openScale()">⚖ Open weigh station</button><button class="btn" onclick="simulateWeigh()">Try a weigh-in</button></div>
     </div>
   </div>
 
@@ -266,6 +270,7 @@ header select{font-size:16px;padding:8px 12px}
   <div class="demo-keys">Keys: <b>S</b> scan · <b>W</b> weigh-in · <b>Esc</b> close</div>
 </div>
 
+<div class="scalebox" id="scalebox" hidden><div class="scalebar"><span>Weigh station · photograph this scale with the phone weigh-in page</span><button class="btn" onclick="closeScale()">Close</button></div><iframe id="scaleframe" title="Simulated scale"></iframe></div>
 <div class="drawer" id="drawer"></div>
 <div class="ov" id="ov"></div>
 <div class="pop" id="pop"></div>
@@ -618,10 +623,11 @@ function scene3(site){
   countUp($('#s3c'), c.repairs.count, short, 2200); countUp($('#s3d'), c.impact.washed_kg, short, 2200);
 }
 function playWeigh(ev){
+  closeScale();
   const ov = $('#ov'), w = weighCalc(ev.kg); ov.classList.add('show');
   ov.innerHTML = ovShell('FIELD WEIGH-IN', 0, 1) + `<div class="ov-body"><div class="weigh-card">
     ${ev.photo?`<img class="photo" src="${ev.photo}" alt="scale photo">`:''}
-    <div class="eyebrow" style="color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-size:13px">Return bag weighed ${ev.reader?'· read by '+ev.reader:''} ${badge('FIELD_SCAN_DEMO')}</div>
+    <div class="eyebrow" style="color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-size:13px">Return bag weighed ${ev.reader==='gemini'?'· read from photo by Gemini':(ev.reader==='manual'?'· typed in':'')} ${badge('FIELD_SCAN_DEMO')}</div>
     <div class="kg"><span id="wkg">0</span><span style="font-size:.35em;color:var(--muted);letter-spacing:0"> kg</span></div>
     <div class="arrow">≈ ${fmt(w.pieces,0)} garments ${badge('ESTIMATED')} &nbsp;→&nbsp; washed by Lindström instead of ${B().name.toLowerCase()}</div>
     <div class="saved"><span id="wsv">0</span> L water saved</div>
@@ -638,14 +644,18 @@ function onEvent(ev, replay){
   S.events.push(ev); renderFeed();
   if(!replay) enqueue(ev);
 }
+function openScale(){ const f=$('#scaleframe'); if(!f.src) f.src='scale'; $('#scalebox').hidden=false; }
+function closeScale(){ $('#scalebox').hidden=true; }
+let maxId = 0;
+function poll(){ fetch('events').then(r=>r.ok?r.json():[]).then(list=>{ (list||[]).forEach(e=>{ if(e.id>maxId){ maxId=e.id; onEvent(e); } }); }).catch(()=>{}); }
 function connect(){
   if(!/^https?:/.test(location.protocol)) return;
-  fetch('events').then(r=>r.ok?r.json():[]).then(list=>{ (list||[]).forEach(e=>onEvent(e,true)); }).catch(()=>{});
+  fetch('events').then(r=>r.ok?r.json():[]).then(list=>{ (list||[]).forEach(e=>{ maxId=Math.max(maxId,e.id||0); onEvent(e,true); }); setInterval(poll, 3000); }).catch(()=>{});
   try{
     const es = new EventSource('stream');
     es.onopen = () => setLive(true);
     es.onerror = () => setLive(false);
-    es.onmessage = m => { try{ onEvent(JSON.parse(m.data)); }catch(e){} };
+    es.onmessage = m => { try{ const e = JSON.parse(m.data); maxId = Math.max(maxId, e.id||0); onEvent(e); }catch(e){} };
   }catch(e){ setLive(false); }
 }
 function setLive(on){ const l=$('#live'); l.classList.toggle('on',on); l.querySelector('span').textContent = on? 'UNO Q live' : 'Offline'; }
@@ -727,7 +737,7 @@ function init(data){
   $('#kpiSave').onclick = () => { const name=$('#kpiName').value.trim()||$('#kpiMetric').selectedOptions[0].text, t=parseFloat($('#kpiTarget').value);
     if(isNaN(t)){ toast('Enter a target'); return; } S.kpis.push({cust:S.cust,name,metric:$('#kpiMetric').value,target:t}); store('kpis',S.kpis); $('#modal').classList.remove('show'); renderFocus(); };
   document.addEventListener('keydown', e=>{ if(e.target.matches('input,select')) return;
-    if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='Escape'){ closeOv(); closeDrawer(); $('#pop').style.display='none'; } });
+    if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='Escape'){ closeOv(); closeDrawer(); closeScale(); $('#pop').style.display='none'; } });
   setPrio(PRIO_DEFAULT[C().industry]||'water');
   connect();
   const q = new URLSearchParams(location.search); if(q.get('scan')) setTimeout(()=>simulateScan(q.get('scan')),600); if(q.get('weigh')) setTimeout(()=>simulateWeigh(+q.get('weigh')),600);

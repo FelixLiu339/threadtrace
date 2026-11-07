@@ -99,6 +99,17 @@ def set_led(ev):
     _led["seq"] += 1
 
 
+def weigh_impact(kg, cust="CUST001"):
+    c = DATA["customers"][cust]
+    lid = c["sites"][0]["laundry"]
+    lf, b = DATA["laundries"][lid], DATA["baselines"]["B_LOCAL"]
+    prods = {p["p"] for p in DATA["passports"].values() if p["c"] == cust}
+    avg = sum(DATA["products"][p]["kg"] for p in prods) / max(len(prods), 1)
+    return {"water_l": round(kg * (b["water_l_per_kg"] - lf["water_l_per_kg"])),
+            "co2_kg": round(kg * (b["kgco2e_per_kg"] - lf["kgco2e_per_kg"]), 1),
+            "pieces": round(kg / avg), "baseline": b["name"].lower()}
+
+
 def passport_summary(aid):
     p = DATA["passports"].get(aid)
     if not p:
@@ -179,6 +190,10 @@ def read_scale_with_gemini(jpeg_b64):
 
 
 PHONE_CSS = """<meta name="viewport" content="width=device-width,initial-scale=1"><style>
+[hidden]{display:none!important}
+.res{margin-top:18px;border-radius:18px;padding:22px;background:linear-gradient(160deg,#0f2233,#0b141d);border:1px solid #1e4a66;text-align:center}
+.res .kg{font-size:56px;font-weight:800;letter-spacing:-1px}.res .arrow{color:#8696a8;margin:6px 0}.res .w{font-size:40px;font-weight:800;color:#38bdf8;text-shadow:0 0 24px rgba(56,189,248,.45)}
+.res .s{color:#8696a8;font-size:15px;margin-top:8px}
 body{margin:0;background:#070b10;color:#e9eff6;font-family:-apple-system,system-ui,sans-serif;padding:28px 22px}
 .ok{width:74px;height:74px;border-radius:50%;background:#22c55e;display:grid;place-items:center;font-size:40px;margin:10px 0 18px;box-shadow:0 0 40px rgba(34,197,94,.5)}
 h1{font-size:26px;margin:0 0 6px}.m{color:#8696a8;font-size:15px;line-height:1.5}.b{display:block;width:100%;padding:16px;border-radius:14px;border:0;
@@ -204,6 +219,7 @@ PAGE_WEIGH = f"""<!doctype html><title>ThreadTrace weigh-in</title>{PHONE_CSS}
 <label class=b id=lab>📷 Take photo of scale<input id=cam type=file accept="image/*" capture="environment" hidden></label>
 <p class=m style="margin-top:22px">Or type the weight:</p><input id=kg type=number step=0.1 inputmode=decimal placeholder="kg">
 <button class="b g" id=send>Send weight</button>
+<div class=res id=res hidden><div class=kg id=rkg></div><div class=arrow>washed by Lindström instead of a local laundry →</div><div class=w id=rw></div><div class=s id=rs></div><div class=s style="color:#4ade80;margin-top:14px">▲ Look at the big screen</div></div>
 <img id=prev hidden><p class=m id=st></p><button class="b g" id=retry hidden>↻ Try reading this photo again</button>
 <script>
 const st=document.getElementById('st');
@@ -211,7 +227,11 @@ function shrink(file){{return new Promise(res=>{{const img=new Image();img.onloa
  const c=document.createElement('canvas');c.width=img.width*k;c.height=img.height*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height);
  res(c.toDataURL('image/jpeg',.82));}};img.src=URL.createObjectURL(file);}});}}
 async function send(body){{st.textContent='Sending…';const r=await fetch('/api/weigh',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
- const j=await r.json();st.innerHTML=j.ok?`✓ ${{j.event.kg}} kg sent to the screen (${{j.note}})`:`Could not read the weight (${{j.note}}). Tap "Try again" or type the weight above.`;
+ const j=await r.json();st.innerHTML=j.ok?`✓ ${{j.note==='manual'?'Typed in':'Read by '+j.note}} and sent to the review screen.`:`Could not read the weight (${{j.note}}). Tap "Try again" or type the weight above.`;
+ const res=document.getElementById('res');res.hidden=!j.ok;
+ if(j.ok){{document.getElementById('rkg').textContent=j.event.kg+' kg';document.getElementById('rw').textContent='≈ '+j.impact.water_l+' L water saved';
+  document.getElementById('rs').textContent='≈ '+j.impact.pieces+' garments · '+j.impact.co2_kg+' kg CO₂e avoided · estimate';
+  document.getElementById('prev').hidden=true;res.scrollIntoView({{behavior:'smooth'}});}}
  document.getElementById('retry').hidden=j.ok||!body.image;}}
 let lastImg=null;document.getElementById('retry').onclick=()=>{{if(lastImg){{st.textContent='Trying again…';send({{image:lastImg}});}}}};
 document.getElementById('cam').onchange=async e=>{{const f=e.target.files[0];if(!f)return;const d=await shrink(f);const p=document.getElementById('prev');p.src=d;p.hidden=false;
@@ -332,7 +352,7 @@ class H(BaseHTTPRequestHandler):
                 return self._json({"ok": False, "note": note})
             ev = add_event({"type": "weigh", "kg": round(kg, 1), "photo": photo,
                             "reader": "gemini" if note == "gemini" else "manual"})
-            return self._json({"ok": True, "event": ev, "note": note})
+            return self._json({"ok": True, "event": ev, "note": note, "impact": weigh_impact(ev["kg"])})
         return self._json({"ok": False, "note": "not found"}, 404)
 
     def _static(self, rel):
