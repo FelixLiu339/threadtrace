@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ThreadTrace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b10; --panel:#0e141c; --panel2:#121a24; --line:#1d2834; --text:#e9eff6; --muted:#8696a8; --dim:#56657a;
+  --accent:#38bdf8; --accent-rgb:56,189,248;
+  --green:#22c55e; --amber:#f5a524; --red:#ef4444;
+  --radius:14px; --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+body[data-prio="water"]{--accent:#38bdf8;--accent-rgb:56,189,248}
+body[data-prio="emissions"]{--accent:#4ade80;--accent-rgb:74,222,128}
+body[data-prio="circularity"]{--accent:#c084fc;--accent-rgb:192,132,252}
+body[data-prio="service"]{--accent:#fbbf24;--accent-rgb:251,191,36}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;min-height:100%}
+body{overflow-x:hidden}
+button,select,input{font:inherit;color:inherit}
+.app{max-width:1680px;margin:0 auto;padding:18px 24px 28px}
+/* header */
+header{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+.logo{width:34px;height:34px;border-radius:10px;background:radial-gradient(circle at 30% 30%,rgba(var(--accent-rgb),1),rgba(var(--accent-rgb),.25) 70%);box-shadow:0 0 24px rgba(var(--accent-rgb),.45);display:grid;place-items:center}
+.logo svg{width:20px;height:20px}
+.brand h1{font-size:19px;font-weight:800;letter-spacing:.2px}
+.brand .sub{color:var(--muted);font-size:12.5px;margin-top:1px}
+.ctrl{display:flex;align-items:center;gap:8px}
+.ctrl label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.8px}
+select{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{background:none;border:0;padding:6px 12px;border-radius:9px;cursor:pointer;color:var(--muted);font-weight:600;font-size:13.5px;white-space:nowrap}
+.seg button.on{background:rgba(var(--accent-rgb),.16);color:var(--accent);box-shadow:inset 0 0 0 1px rgba(var(--accent-rgb),.4)}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:7px 12px;cursor:pointer;font-weight:600;font-size:13.5px}
+.btn:hover{border-color:rgba(var(--accent-rgb),.6)}
+.btn.primary{background:var(--accent);color:#04121b;border-color:transparent}
+.live{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.live.on i{background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.4}}
+/* layout */
+.focus{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0 16px;color:var(--muted);font-size:13px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12.5px;color:var(--text);background:var(--panel)}
+.chip.kpi.ok{border-color:rgba(34,197,94,.5)} .chip.kpi.bad{border-color:rgba(239,68,68,.5)}
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+.card{background:linear-gradient(180deg,var(--panel),#0b1118);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;position:relative;min-width:0}
+.card h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1.1px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card h3 .grow{flex:1}
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:18px}
+.rag-big{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.rag-dot{width:54px;height:54px;border-radius:50%;flex:none}
+.rag-dot.green{background:radial-gradient(circle,#4ade80,#16a34a);box-shadow:0 0 30px rgba(34,197,94,.55)}
+.rag-dot.amber{background:radial-gradient(circle,#fcd34d,#d97706);box-shadow:0 0 30px rgba(245,165,36,.55)}
+.rag-dot.red{background:radial-gradient(circle,#f87171,#b91c1c);box-shadow:0 0 30px rgba(239,68,68,.55)}
+.rag-big b{font-size:22px;display:block}
+.rag-big span{color:var(--muted);font-size:13px}
+.rag-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+.rag-row i{width:10px;height:10px;border-radius:50%;flex:none}
+.rag-row i.green{background:var(--green)} .rag-row i.amber{background:var(--amber)} .rag-row i.red{background:var(--red)}
+.rag-row .v{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
+.headline .big{font-size:clamp(40px,4.6vw,68px);font-weight:800;letter-spacing:-1.5px;line-height:1;color:var(--accent);text-shadow:0 0 34px rgba(var(--accent-rgb),.35);font-variant-numeric:tabular-nums}
+.headline .unit{font-size:18px;font-weight:600;color:var(--text);margin-left:6px;letter-spacing:0}
+.headline .what{font-size:14px;color:var(--muted);margin:10px 0 16px}
+.range{position:relative;height:30px;margin-top:6px}
+.range .track{position:absolute;left:0;right:0;top:12px;height:6px;border-radius:3px;background:var(--line)}
+.range .band{position:absolute;top:12px;height:6px;border-radius:3px;background:rgba(var(--accent-rgb),.45)}
+.range .mid{position:absolute;top:6px;width:4px;height:18px;border-radius:2px;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+.range-l{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.tile{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:13px 14px;min-width:0}
+.tile .n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.tile .l{font-size:12.5px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* badges */
+.badge{display:inline-flex;align-items:center;font-family:var(--mono);font-size:9.5px;letter-spacing:.4px;padding:2px 6px;border-radius:5px;border:1px solid;cursor:pointer;white-space:nowrap;vertical-align:middle;text-transform:uppercase}
+.badge.SIMULATED{color:#93a4b8;border-color:#334255}
+.badge.ESTIMATED{color:#fcd34d;border-color:#6b5414}
+.badge.TEAM_ASSUMPTION{color:#f0abfc;border-color:#6b2a73}
+.badge.PUBLIC_REFERENCE{color:#7dd3fc;border-color:#164e63}
+.badge.FIELD_SCAN_DEMO{color:#4ade80;border-color:#166534}
+.pop{position:fixed;z-index:60;max-width:360px;background:#0f1722;border:1px solid #2a3a4c;border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.5;box-shadow:0 20px 50px rgba(0,0,0,.6);display:none}
+.pop b{display:block;margin-bottom:4px}
+.pop code{font-family:var(--mono);font-size:12px;color:var(--accent);display:block;margin-top:8px;white-space:pre-wrap}
+/* chart */
+svg text{font-family:var(--font)}
+.chart{width:100%;height:190px}
+/* map */
+.map{width:100%;aspect-ratio:1/1.02;max-height:560px}
+.site-dot{cursor:pointer;transition:r .4s}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
+/* observations */
+.obs{display:flex;flex-direction:column;gap:10px}
+.ob{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:10px;padding:11px 13px;background:var(--panel2);font-size:13.5px;line-height:1.45;cursor:pointer}
+.ob.top{border-left-color:var(--accent)}
+.ob .q{color:var(--accent);margin-top:6px;font-weight:600}
+.ob .meta{font-size:11.5px;color:var(--dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.8px;display:flex;gap:8px;align-items:center}
+/* feed */
+.feed{display:flex;flex-direction:column;gap:7px;max-height:210px;overflow:auto}
+.ev{display:flex;gap:10px;align-items:center;font-size:13px;padding:7px 10px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);animation:slidein .5s}
+.ev .t{color:var(--dim);font-family:var(--mono);font-size:11.5px}
+.ev img{width:30px;height:30px;border-radius:6px;object-fit:cover}
+@keyframes slidein{from{opacity:0;transform:translateY(-8px)}}
+.empty{color:var(--dim);font-size:13px}
+/* public ref */
+.pref{display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.pref .row{display:grid;grid-template-columns:150px 1fr 44px;gap:10px;align-items:center}
+.pref .bar{height:8px;border-radius:4px;background:#2a3646}
+.pref .row.me .bar{background:var(--accent)}
+.pref .row.me{font-weight:700}
+/* drawer */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(440px,92vw);background:#0b121b;border-left:1px solid var(--line);z-index:40;transform:translateX(100%);transition:transform .35s;padding:22px;overflow:auto}
+.drawer.open{transform:none;box-shadow:-30px 0 60px rgba(0,0,0,.5)}
+.drawer h2{font-size:22px;margin:4px 0 2px}
+.drawer .x{position:absolute;right:18px;top:16px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:8px 12px;font-size:13.5px;margin-top:14px}
+.kv div:nth-child(odd){color:var(--muted)}
+.kv div:nth-child(even){text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* overlay */
+.ov{position:fixed;inset:0;z-index:50;background:radial-gradient(ellipse at 50% 40%,#0d1824 0%,#05080c 70%);display:none;flex-direction:column}
+.ov.show{display:flex;animation:fadein .5s}
+@keyframes fadein{from{opacity:0}}
+.ov-top{display:flex;align-items:center;gap:14px;padding:22px 32px}
+.ov-top .tag{font-family:var(--mono);font-size:12px;color:var(--accent);border:1px solid rgba(var(--accent-rgb),.5);border-radius:6px;padding:3px 8px}
+.ov-top .steps{display:flex;gap:6px;margin-left:auto}
+.ov-top .steps i{width:34px;height:4px;border-radius:2px;background:#22303f}
+.ov-top .steps i.on{background:var(--accent)}
+.ov-body{flex:1;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:40px;align-items:center;padding:10px 60px 40px}
+.ov-vis{display:grid;place-items:center;min-height:0}
+.ov-vis svg{width:min(62vh,100%);height:auto;max-height:70vh}
+.ov-text .eyebrow{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px}
+.ov-text h2{font-size:clamp(28px,3.2vw,46px);font-weight:800;letter-spacing:-1px;margin:8px 0 24px;line-height:1.1}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.stat{border:1px solid var(--line);border-radius:14px;padding:16px 18px;background:rgba(14,20,28,.7)}
+.stat .n{font-size:clamp(28px,2.6vw,40px);font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.8px}
+.stat .n.acc{color:var(--accent);text-shadow:0 0 24px rgba(var(--accent-rgb),.35)}
+.stat .l{font-size:13px;color:var(--muted);margin-top:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ov-foot{padding:0 60px 26px;color:var(--dim);font-size:12.5px;display:flex;justify-content:space-between}
+.weigh-card{grid-column:1/-1;text-align:center}
+.weigh-card .kg{font-size:clamp(70px,11vw,150px);font-weight:800;letter-spacing:-4px;line-height:1;font-variant-numeric:tabular-nums}
+.weigh-card .arrow{font-size:28px;color:var(--muted);margin:14px 0}
+.weigh-card .saved{font-size:clamp(40px,6vw,84px);font-weight:800;color:var(--accent);text-shadow:0 0 40px rgba(var(--accent-rgb),.4);font-variant-numeric:tabular-nums}
+.weigh-card .photo{width:150px;height:150px;border-radius:16px;object-fit:cover;border:1px solid var(--line);margin:0 auto 18px;display:block}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#0f1722;border:1px solid rgba(var(--accent-rgb),.5);border-radius:12px;padding:10px 16px;font-size:13.5px;z-index:70;display:none}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:55;display:none;place-items:center}
+.modal.show{display:grid}
+.modal .box{background:#0e151f;border:1px solid var(--line);border-radius:16px;padding:22px;width:min(420px,92vw);display:flex;flex-direction:column;gap:12px}
+.modal input,.modal select{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
+.demo-keys{color:var(--dim);font-size:12px;margin-top:14px;text-align:center}
+/* report (print) */
+#report{display:none}
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff;color:#111}
+  .app,.ov,.drawer,.pop,.modal,.toast{display:none!important}
+  #report{display:block;font-family:var(--font);color:#111;font-size:11pt}
+  #report h1{font-size:22pt;margin-bottom:2mm}
+  #report h2{font-size:13pt;margin:7mm 0 2mm;border-bottom:1px solid #ccc;padding-bottom:1mm}
+  #report table{width:100%;border-collapse:collapse;font-size:9.5pt}
+  #report td,#report th{border-bottom:1px solid #e3e3e3;padding:1.5mm 2mm;text-align:left;vertical-align:top}
+  #report th{background:#f3f4f6}
+  #report .st{font-family:var(--mono);font-size:7.5pt;color:#555}
+  #report .pg{page-break-before:always}
+  #report .muted{color:#555}
+  #report .rag{display:inline-block;width:9pt;height:9pt;border-radius:50%;vertical-align:middle;margin-right:2mm}
+}
+@media (max-width:1100px){.grid,.hero{grid-template-columns:1fr}.ov-body{grid-template-columns:1fr;padding:10px 24px}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body data-prio="water">
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#04121b" stroke-width="2.4" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 8-8"/><path d="M12 4l-3 -2.5M12 4l-3 2.5"/><circle cx="12" cy="12" r="2.2" fill="#04121b"/></svg></div>
+      <div><h1>ThreadTrace</h1><div class="sub">Scan one garment. See the value of the whole account.</div></div>
+    </div>
+    <div class="ctrl"><label>Customer</label><select id="selCust"></select></div>
+    <div class="ctrl"><label>Compared with</label><select id="selBase"></select></div>
+    <div class="seg" id="segPrio">
+      <button data-p="water">Water</button><button data-p="emissions">Emissions</button><button data-p="circularity">Circularity &amp; cost</button><button data-p="service">Service</button>
+    </div>
+    <button class="btn" id="btnKpi">+ Contract KPI</button>
+    <button class="btn primary" id="btnReport">Export report</button>
+    <div class="live" id="live"><i></i><span>Gateway offline</span></div>
+  </header>
+
+  <div class="focus" id="focus"></div>
+
+  <div class="grid">
+    <div class="col">
+      <div class="hero">
+        <div class="card" id="cardScore"></div>
+        <div class="card headline" id="cardHead"></div>
+      </div>
+      <div class="card"><h3>Account at a glance <span class="grow"></span><span class="badge SIMULATED" data-b="SIMULATED">simulated</span></h3><div class="tiles" id="tiles"></div></div>
+      <div class="card"><h3 id="chartTitle">Monthly</h3><svg class="chart" id="chart" viewBox="0 0 800 190" preserveAspectRatio="none"></svg></div>
+      <div class="card"><h3>Context: Lindström vs textile-rental peers <span class="grow"></span><span class="badge PUBLIC_REFERENCE" data-b="PUBLIC_REFERENCE" data-f="pref">public reference</span></h3><div class="pref" id="pref"></div></div>
+    </div>
+    <div class="col">
+      <div class="card"><h3>Delivery sites <span class="grow"></span><span id="mapNote" style="text-transform:none;letter-spacing:0"></span></h3><svg class="map" id="map"></svg><div class="legend" id="mapLegend"></div></div>
+      <div class="card"><h3>For the steering committee <span class="grow"></span><span class="badge ESTIMATED" data-b="ESTIMATED">rules-generated</span></h3><div class="obs" id="obs"></div></div>
+      <div class="card"><h3>Live field evidence <span class="grow"></span><span class="badge FIELD_SCAN_DEMO" data-b="FIELD_SCAN_DEMO">field scan (demo)</span></h3><div class="feed" id="feed"><div class="empty">Scan a garment QR code or weigh a return bag to add evidence.</div></div></div>
+    </div>
+  </div>
+  <div class="demo-keys">Demo keys: <b>S</b> simulate garment scan · <b>W</b> simulate weigh-in · <b>Esc</b> close</div>
+</div>
+
+<div class="drawer" id="drawer"></div>
+<div class="ov" id="ov"></div>
+<div class="pop" id="pop"></div>
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="box">
+  <b>Add a contract KPI</b>
+  <div style="color:var(--muted);font-size:13px">KPIs differ per contract, so the KAM adds the ones this customer tracks.</div>
+  <input id="kpiName" placeholder="Name, e.g. On-time delivery">
+  <select id="kpiMetric"><option value="on_time">On-time cycles (%)</option><option value="scan_share">Garments with scan activity (%)</option><option value="sr_per_site">Service requests per site (count, lower is better)</option></select>
+  <input id="kpiTarget" type="number" step="0.1" placeholder="Target, e.g. 98">
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="kpiCancel">Cancel</button><button class="btn primary" id="kpiSave">Add</button></div>
+</div></div>
+<div id="report"></div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const LABEL = {SIMULATED:'simulated', ESTIMATED:'estimated', TEAM_ASSUMPTION:'team assumption', PUBLIC_REFERENCE:'public reference', FIELD_SCAN_DEMO:'field scan (demo)'};
+const PRIO_DEFAULT = {'Food & Beverage':'water', 'Manufacturing':'circularity', 'Healthcare':'service'};
+const S = {data:null, cust:'CUST001', base:'B_LOCAL', prio:'water', events:[], kpis:[], highlight:null, ovTimer:null, queue:[], playing:false};
+
+/* ---------- helpers ---------- */
+const fmt = (v, d=0) => v==null||isNaN(v) ? '–' : Number(v).toLocaleString('en-US',{maximumFractionDigits:d, minimumFractionDigits:d});
+function short(v){ if(v==null) return '–'; const a=Math.abs(v);
+  if(a>=1e6) return (v/1e6).toFixed(a>=1e7?1:2).replace(/\.0+$/,'')+'M';
+  if(a>=1e4) return (v/1e3).toFixed(a>=1e5?0:1).replace(/\.0$/,'')+'k';
+  return fmt(v, a<10&&v%1? 1:0); }
+function badge(kind, f){ return `<span class="badge ${kind}" data-b="${kind}"${f?` data-f="${f}"`:''}>${LABEL[kind]}</span>`; }
+function countUp(el, to, f=short, ms=1400){ if(!el) return; const from = 0, t0 = performance.now();
+  const step = t => { const k = Math.min(1,(t-t0)/ms), e = 1-Math.pow(1-k,3); el.textContent = f(from+(to-from)*e); if(k<1) requestAnimationFrame(step); };
+  requestAnimationFrame(step); }
+function el(tag, attrs={}, parent){ const n = document.createElementNS(NS, tag); for(const k in attrs) n.setAttribute(k, attrs[k]); if(parent) parent.appendChild(n); return n; }
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',2600); }
+function store(k,v){ try{ localStorage.setItem('tt_'+k, JSON.stringify(v)); }catch(e){} }
+function load(k,d){ try{ const v=localStorage.getItem('tt_'+k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+const C = () => S.data.customers[S.cust];
+const B = () => S.data.baselines[S.base];
+const siteById = id => C().sites.find(s=>s.id===id);
+
+/* formulas shown in badge popovers */
+const FORMULA = {
+  water: () => `water saved = washed kg × ${B().name} water factor (${B().water_l_per_kg} L/kg) − water allocated from Lindström laundries.\nLow / high: baseline factor × 0.8 / × 1.2 (TEAM_ASSUMPTION T1).`,
+  emissions: () => `CO2e saved = washed kg × ${B().name} factor (${fmt(B().kgco2e_per_kg,3)} kg/kg, process + delivery) − CO2e allocated from laundry process + delivery.\nLow / high: × 0.8 / × 1.2 (T1).`,
+  circularity: () => `avoided CO2e = replacements postponed × product footprint.\navoided purchase cost = replacements postponed × synthetic purchase cost.\nPostponed per repair: 0.5 / 1.0 / 1.5 (low / base / high, T2; pack default A002 = 1.0).`,
+  service: () => `on-time % = cycles flagged ON_TIME ÷ all service cycles (scan timestamps pickup → delivered).`,
+  noscan: () => `allocated garments with no scan activity = average monthly allocated pieces − active assets scanned.\nPer Lindström guidance this is a signal to investigate (not used / not picked up / incomplete scans), not proof of idle garments.`,
+  pref: () => `Company-level emissions intensity, kg CO2e per EUR turnover. Lindström 0.28 vs peer average 0.32 → about 13% lower. Not specific to this customer.`,
+  weigh: () => `water saved = returned kg × (baseline ${B().water_l_per_kg} L/kg − laundry factor).\nCO2e saved = returned kg × (baseline ${fmt(B().kgco2e_per_kg,3)} − laundry factor). Laundry factors = 2025 annual averages from Laundry_Resources.`,
+  passport: () => `washed kg = cycles × product weight. Water / CO2e saved = washed kg × (baseline factor − this laundry's 2025 average factor).`,
+};
+
+/* ---------- metric model per priority ---------- */
+function metric(obj, p=S.prio, lvl='base'){
+  if(p==='water') return obj.impact.vs[S.base][lvl].water_saved_l;
+  if(p==='emissions') return obj.impact.vs[S.base][lvl].co2e_saved_kg;
+  if(p==='circularity') return obj.repairs.avoided_co2e_kg[lvl];
+  return obj.service.on_time_pct;
+}
+const PRIO = {
+  water:{label:'Water saved', unit:'L', what:b=>`vs ${b} · 2025`, kind:'ESTIMATED', f:'water', series:'water_saved_l', seriesLabel:'Water saved vs local laundry (L)'},
+  emissions:{label:'CO₂e avoided', unit:'kg', what:b=>`vs ${b} · process + delivery · 2025`, kind:'ESTIMATED', f:'emissions', series:'co2e_saved_kg', seriesLabel:'CO₂e saved vs local laundry (kg)'},
+  circularity:{label:'CO₂e avoided by repairs', unit:'kg', what:()=>`new garments not bought because repairs extended life · 2025`, kind:'ESTIMATED', f:'circularity', series:'kg', seriesLabel:'Washed kg'},
+  service:{label:'Cycles on time', unit:'%', what:()=>`pickup → laundry → delivery, all garments · 2025`, kind:'SIMULATED', f:'service', series:'service_requests', seriesLabel:'Service requests'},
+};
+
+/* ---------- render ---------- */
+function renderAll(){ renderFocus(); renderScore(); renderHead(); renderTiles(); renderChart(); renderMap(); renderObs(); renderPref(); renderFeed(); }
+
+function renderFocus(){
+  const c = C();
+  const ip = c.industry_priorities.map(p=>`<span class="chip">${p.rank}. ${p.theme}</span>`).join('');
+  const kp = S.kpis.filter(k=>k.cust===S.cust).map(k=>{ const v = kpiValue(k), ok = k.metric==='sr_per_site' ? v<=k.target : v>=k.target;
+    return `<span class="chip kpi ${ok?'ok':'bad'}">${ok?'✓':'✗'} ${k.name}: ${fmt(v,1)} / ${fmt(k.target,1)}</span>`; }).join('');
+  $('#focus').innerHTML = `<b style="color:var(--text)">${c.name}</b> · ${c.industry} · ${c.sites.length} sites · Industry focus: ${ip}${kp?` · Contract KPIs: ${kp}`:''}`;
+}
+function kpiValue(k){ const s=C().service; return k.metric==='on_time'? s.on_time_pct : k.metric==='scan_share'? s.scan_share_pct : s.service_requests/C().sites.length; }
+
+function renderScore(){
+  const sc = C().scorecard, word = {green:'On track', amber:'Watch', red:'Act now'};
+  $('#cardScore').innerHTML = `<h3>Customer success scorecard <span class="grow"></span>${badge('TEAM_ASSUMPTION','')}</h3>
+   <div class="rag-big"><div class="rag-dot ${sc.overall}"></div><div><b>${word[sc.overall]}</b><span>Overall account health, 2025</span></div></div>
+   <div class="rag-row"><i class="${sc.service.rag}"></i>Service performance<span class="v">${fmt(sc.service.value,1)}% on time</span></div>
+   <div class="rag-row"><i class="${sc.adoption.rag}"></i>Service adoption<span class="v">${fmt(sc.adoption.value,1)}% scanned</span></div>
+   <div class="rag-row"><i class="${sc.sustainability.rag}"></i>Sustainability value<span class="v">${short(C().impact.vs[S.base].base.water_saved_l)} L water</span></div>`;
+}
+function renderHead(){
+  const c = C(), P = PRIO[S.prio], v = metric(c), lo = metric(c,S.prio,'low'), hi = metric(c,S.prio,'high');
+  let rangeHtml = '';
+  if(S.prio!=='service'){
+    const max = hi*1.08, pct = x => Math.max(0,Math.min(100,x/max*100));
+    rangeHtml = `<div class="range"><div class="track"></div><div class="band" style="left:${pct(lo)}%;width:${pct(hi)-pct(lo)}%"></div><div class="mid" style="left:calc(${pct(v)}% - 2px)"></div></div>
+     <div class="range-l"><span>low ${short(lo)}</span><span>base ${short(v)}</span><span>high ${short(hi)}</span></div>`;
+  } else {
+    rangeHtml = `<div class="range-l" style="margin-top:12px"><span>${fmt(c.service.cycles)} cycles · ${fmt(c.service.late_cycles)} late · avg turnaround ${fmt(c.service.avg_cycle_hours,0)} h</span></div>`;
+  }
+  const extra = S.prio==='circularity' ? `<div class="range-l" style="margin-top:10px"><span>Avoided purchase cost ${badge('ESTIMATED','circularity')}</span><b style="color:var(--text)">€${short(c.repairs.avoided_cost_eur.low)}–${short(c.repairs.avoided_cost_eur.high)}</b></div>` : '';
+  $('#cardHead').innerHTML = `<h3>${P.label} <span class="grow"></span>${badge(P.kind,P.f)}</h3>
+    <div><span class="big" id="headNum">0</span><span class="unit">${P.unit}</span></div>
+    <div class="what">${P.what(B().name.toLowerCase())}</div>${rangeHtml}${extra}`;
+  countUp($('#headNum'), v, S.prio==='service'? x=>fmt(x,1) : short);
+}
+function renderTiles(){
+  const c = C(), s = c.service;
+  const T = [
+    [c.sites.length,'Delivery sites','SIMULATED'],
+    [s.garments_tracked,'Garments tracked (scan history)','SIMULATED'],
+    [s.wearers_dec,'Active wearers (Dec)','SIMULATED'],
+    [c.impact.washed_kg,'Washed kg','SIMULATED'],
+    [c.repairs.count,'Repairs completed','SIMULATED'],
+    [s.no_scan_avg,'Allocated, no scan activity / month','ESTIMATED','noscan'],
+  ];
+  $('#tiles').innerHTML = T.map((t,i)=>`<div class="tile"><div class="n" id="tile${i}">0</div><div class="l">${t[1]} ${t[3]?badge(t[2],t[3]):''}</div></div>`).join('');
+  T.forEach((t,i)=>countUp($('#tile'+i), t[0], short, 1100));
+}
+function renderChart(){
+  const svg = $('#chart'); svg.innerHTML=''; const m = C().monthly, P = PRIO[S.prio];
+  const key = P.series, vals = m.map(x=>x[key]), max = Math.max(...vals)*1.15 || 1, W=800, H=190, pad=24, bw=(W-pad*2)/m.length;
+  $('#chartTitle').innerHTML = `${P.seriesLabel} by month <span class="grow"></span>${badge(key==='kg'||key==='service_requests'?'SIMULATED':'ESTIMATED', key==='kg'||key==='service_requests'?'':P.f)}`;
+  m.forEach((x,i)=>{ const h = Math.max(1,(x[key]/max)*(H-pad-18)); const r = el('rect',{x:pad+i*bw+bw*.18, y:H-pad-h, width:bw*.64, height:h, rx:4, fill:'var(--accent)','fill-opacity':.25+.6*(x[key]/max)},svg);
+    r.style.transformBox='fill-box'; r.style.transformOrigin='50% 100%';
+    r.animate([{transform:'scaleY(0)'},{transform:'scaleY(1)'}],{duration:700,delay:i*40,fill:'backwards',easing:'cubic-bezier(.2,.8,.2,1)'});
+    const t = el('text',{x:pad+i*bw+bw/2, y:H-6, 'text-anchor':'middle', 'font-size':11, fill:'#8696a8'},svg); t.textContent = x.month.slice(5);
+    if(i===m.length-1 || i===0){ const lv = el('text',{x:pad+i*bw+bw/2, y:H-pad-h-6,'text-anchor':'middle','font-size':11,fill:'#e9eff6'},svg); lv.textContent = short(x[key]); }
+  });
+}
+/* projection for the map */
+function proj(lat, lon){ const k = Math.cos(57*Math.PI/180); return [(lon-10)*k, (66.5-lat)]; }
+function renderMap(target='#map', opts={}){
+  const svg = typeof target==='string' ? $(target) : target; svg.innerHTML='';
+  const c = C(), pts = c.sites.map(s=>({s, p:proj(s.lat,s.lon)}));
+  const labs = Object.entries(S.data.laundries).map(([id,l])=>({id,l,p:proj(...LAUNDRY_LL[id])}));
+  const all = pts.map(x=>x.p).concat(labs.map(x=>x.p));
+  const xs = all.map(p=>p[0]), ys = all.map(p=>p[1]);
+  const minX=Math.min(...xs)-1.2, maxX=Math.max(...xs)+1.2, minY=Math.min(...ys)-1.2, maxY=Math.max(...ys)+1.2;
+  const W=600, H=Math.round(600*(maxY-minY)/(maxX-minX)); svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const X = p=>(p[0]-minX)/(maxX-minX)*W, Y = p=>(p[1]-minY)/(maxY-minY)*H;
+  // grid
+  for(let i=0;i<=10;i++){ el('line',{x1:i*W/10,y1:0,x2:i*W/10,y2:H,stroke:'#121b25'},svg); }
+  for(let i=0;i<=Math.round(10*H/W);i++){ el('line',{x1:0,y1:i*W/10,x2:W,y2:i*W/10,stroke:'#121b25'},svg); }
+  // country labels
+  [['FINLAND',62.6,26.2],['SWEDEN',58.6,14.2],['POLAND',52.2,18.8]].forEach(([n,la,lo])=>{ const p=proj(la,lo); if(Y(p)>0&&Y(p)<H){ const t=el('text',{x:X(p),y:Y(p),'text-anchor':'middle','font-size':22,'font-weight':800,fill:'#16212d','letter-spacing':6},svg); t.textContent=n; }});
+  const used = new Set(c.sites.map(s=>s.laundry));
+  const vals = pts.map(x=>metric(x.s)), vmax = Math.max(...vals), vmin = Math.min(...vals);
+  const gmax = Math.max(...c.sites.map(s=>s.service.garments_tracked));
+  // delivery lines
+  pts.forEach(({s,p})=>{ const lp = proj(...LAUNDRY_LL[s.laundry]); const ln = el('path',{d:`M${X(lp)} ${Y(lp)} Q ${(X(lp)+X(p))/2} ${Math.min(Y(lp),Y(p))-30} ${X(p)} ${Y(p)}`,fill:'none',stroke:'rgba(var(--accent-rgb),.22)','stroke-width':1.2},svg);
+    const len = ln.getTotalLength ? ln.getTotalLength() : 300; ln.style.strokeDasharray=len; ln.style.strokeDashoffset=len; ln.animate([{strokeDashoffset:len},{strokeDashoffset:0}],{duration:1200,delay:200+Math.random()*500,fill:'forwards'}); });
+  // laundries
+  labs.filter(x=>used.has(x.id)).forEach(({id,l,p})=>{ el('rect',{x:X(p)-7,y:Y(p)-7,width:14,height:14,rx:3,fill:'#0b1118',stroke:'#e9eff6','stroke-width':1.5},svg);
+    const t=el('text',{x:X(p)+12,y:Y(p)+4,'font-size':12,fill:'#8696a8'},svg); t.textContent=l.name.replace(' WWS',' laundry'); });
+  // sites
+  const glow = el('filter',{id:'glow'+(opts.id||''),x:'-1',y:'-1',width:'3',height:'3'},el('defs',{},svg)); el('feGaussianBlur',{stdDeviation:4},glow);
+  pts.forEach(({s,p},i)=>{ const v = metric(s), k = vmax===vmin?1:(v-vmin)/(vmax-vmin); const r = 5 + 11*Math.sqrt(s.service.garments_tracked/gmax);
+    const op = .35 + .65*k; const g = el('g',{},svg);
+    el('circle',{cx:X(p),cy:Y(p),r:r*1.6,fill:'var(--accent)',opacity:op*.35,filter:`url(#glow${opts.id||''})`},g);
+    const d = el('circle',{cx:X(p),cy:Y(p),r:0,fill:'var(--accent)',opacity:op,class:'site-dot'},g);
+    d.animate([{r:0},{r:r}],{duration:600,delay:400+i*35,fill:'forwards',easing:'cubic-bezier(.2,1.4,.4,1)'}); d.setAttribute('r',r);
+    const hl = (opts.highlight||S.highlight)===s.id;
+    if(hl){ const ring = el('circle',{cx:X(p),cy:Y(p),r:r+4,fill:'none',stroke:'#fff','stroke-width':2},g);
+      ring.animate([{r:r+3,opacity:1},{r:r+26,opacity:0}],{duration:1600,iterations:Infinity});
+      const t=el('text',{x:X(p),y:Y(p)-r-10,'text-anchor':'middle','font-size':14,'font-weight':700,fill:'#fff'},g); t.textContent=s.city; }
+    const title = el('title',{},g); title.textContent = `${s.name} · ${PRIO[S.prio].label}: ${S.prio==='service'?fmt(v,1)+'%':short(v)+' '+PRIO[S.prio].unit}`;
+    if(!opts.static) g.addEventListener('click',()=>openSite(s.id)); g.style.cursor='pointer';
+  });
+  if(!opts.static){
+    $('#mapNote').textContent = `dot size = garments · brightness = ${PRIO[S.prio].label.toLowerCase()}`;
+    $('#mapLegend').innerHTML = `<span>■ laundry</span><span>● delivery site (click for drill-down)</span><span>— delivery route</span>`;
+  }
+}
+const LAUNDRY_LL = {L001:[60.17,24.94], L002:[60.45,22.27], L003:[55.60,13.00], L004:[52.23,21.01]};
+
+function renderObs(){
+  const order = {water:['water','adoption','circularity','service'], emissions:['water','circularity','adoption','service'], circularity:['circularity','adoption','water','service'], service:['service','adoption','circularity','water']}[S.prio];
+  const obs = [...C().observations].sort((a,b)=>order.indexOf(a.theme)-order.indexOf(b.theme)).slice(0,3);
+  $('#obs').innerHTML = obs.map((o,i)=>`<div class="ob ${i===0?'top':''}" data-site="${o.site}"><div class="meta">${o.theme} ${badge(o.status, o.theme==='adoption'?'noscan':(o.theme==='service'?'service':(o.theme==='water'?'water':'circularity')))}</div>${o.text}<div class="q">→ ${o.question}</div></div>`).join('');
+  document.querySelectorAll('.ob').forEach(n=>n.addEventListener('click',e=>{ if(e.target.closest('.badge')) return; openSite(n.dataset.site); }));
+}
+function renderPref(){
+  const pr = S.data.public_reference, vals = Object.entries(pr.values).sort((a,b)=>b[1]-a[1]), max = Math.max(...vals.map(v=>v[1]));
+  $('#pref').innerHTML = vals.map(([n,v])=>`<div class="row ${n.startsWith('Lindstr')?'me':''}"><span>${n}</span><div class="bar" style="width:${v/max*100}%"></div><span>${v.toFixed(2)}</span></div>`).join('') +
+   `<div style="color:var(--muted);margin-top:6px">kg CO₂e per € turnover · Lindström ≈ 13% below peer average · company level, not customer-specific</div>`;
+}
+function renderFeed(){
+  const evs = S.events.slice(-12).reverse();
+  if(!evs.length) return;
+  $('#feed').innerHTML = evs.map(e=>{ const t = (e.ts||'').slice(11,16);
+    if(e.type==='scan'){ const p=S.data.passports[e.asset_id]; const pn = p? S.data.products[p.p].name : 'Unknown garment'; const sn = p? (siteById(p.s)||{}).name||p.s : '';
+      return `<div class="ev"><span class="t">${t}</span>▣ <b>${e.asset_id}</b> ${pn} · ${sn}</div>`; }
+    return `<div class="ev"><span class="t">${t}</span>${e.photo?`<img src="${e.photo}" alt="">`:'⚖'} <b>${fmt(e.kg,1)} kg</b> returned · ${short(weighCalc(e.kg).water)} L water saved</div>`; }).join('');
+}
+
+/* ---------- site drawer ---------- */
+function openSite(id){
+  const s = siteById(id); if(!s) return; const sv = s.service, im = s.impact.vs[S.base].base, rp = s.repairs;
+  const sorted = [...C().sites].sort((a,b)=>metric(b)-metric(a)), rank = sorted.findIndex(x=>x.id===id)+1;
+  $('#drawer').innerHTML = `<button class="btn x" onclick="closeDrawer()">Close</button>
+    <div style="color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px">${s.type} · ${s.country}</div><h2>${s.name}</h2>
+    <div style="color:var(--muted);font-size:13px">Served by ${S.data.laundries[s.laundry].name} · rank #${rank} of ${C().sites.length} on ${PRIO[S.prio].label.toLowerCase()}</div>
+    <div class="kv">
+      <div>Garments tracked</div><div>${fmt(sv.garments_tracked)}</div>
+      <div>Washed kg (2025)</div><div>${fmt(s.impact.washed_kg)}</div>
+      <div>Cycles on time ${badge('SIMULATED')}</div><div>${fmt(sv.on_time_pct,1)}%</div>
+      <div>Avg turnaround</div><div>${fmt(sv.avg_cycle_hours,0)} h</div>
+      <div>Service requests</div><div>${fmt(sv.service_requests)}</div>
+      <div>Allocated, no scan activity / month ${badge('ESTIMATED','noscan')}</div><div>${fmt(sv.no_scan_avg)} (${fmt(100-sv.scan_share_pct,1)}%)</div>
+      <div>Water saved vs ${B().name.toLowerCase()} ${badge('ESTIMATED','water')}</div><div>${fmt(im.water_saved_l)} L</div>
+      <div>CO₂e saved ${badge('ESTIMATED','emissions')}</div><div>${fmt(im.co2e_saved_kg)} kg</div>
+      <div>Repairs</div><div>${fmt(rp.count)}</div>
+      <div>CO₂e avoided by repairs ${badge('ESTIMATED','circularity')}</div><div>${short(rp.avoided_co2e_kg.low)}–${short(rp.avoided_co2e_kg.high)} kg</div>
+    </div>
+    <h3 style="margin:20px 0 8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Repairs by type</h3>
+    ${Object.entries(rp.by_type).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div style="display:grid;grid-template-columns:150px 1fr 50px;gap:8px;align-items:center;font-size:12.5px;margin:5px 0"><span>${k.toLowerCase()}</span><div style="height:8px;border-radius:4px;background:var(--accent);opacity:.8;width:${v/Math.max(...Object.values(rp.by_type))*100}%"></div><span style="text-align:right">${v}</span></div>`).join('')}`;
+  $('#drawer').classList.add('open'); S.highlight = id; renderMap();
+}
+function closeDrawer(){ $('#drawer').classList.remove('open'); }
+
+/* ---------- passport + weigh calculations ---------- */
+function passportCalc(aid){
+  const p = S.data.passports[aid]; if(!p) return null;
+  const prod = S.data.products[p.p], lf = S.data.laundries[p.l], b = B(), kg = p.cy.length*prod.kg;
+  return {p, prod, kg, cycles:p.cy.length, onTime: p.cy.filter(c=>c[2]).length/p.cy.length*100,
+    avgH: p.cy.reduce((a,c)=>a+c[1],0)/p.cy.length,
+    water: kg*(b.water_l_per_kg - lf.water_l_per_kg), co2: kg*(b.kgco2e_per_kg - lf.kgco2e_per_kg)};
+}
+function weighCalc(kg){
+  const lid = (C().sites[0]||{}).laundry || 'L001', lf = S.data.laundries[lid], b = B();
+  return {water: kg*(b.water_l_per_kg-lf.water_l_per_kg), waterLo: kg*(b.water_l_per_kg*.8-lf.water_l_per_kg), waterHi: kg*(b.water_l_per_kg*1.2-lf.water_l_per_kg),
+          co2: kg*(b.kgco2e_per_kg-lf.kgco2e_per_kg), pieces: kg/avgPieceKg()};
+}
+function avgPieceKg(){ const ps = new Set(); Object.values(S.data.passports).forEach(p=>{ if(p.c===S.cust) ps.add(p.p); }); const a=[...ps].map(id=>S.data.products[id].kg); return a.reduce((x,y)=>x+y,0)/a.length; }
+
+/* ---------- overlay scenes ---------- */
+function enqueue(ev){ S.queue.push(ev); if(!S.playing) playNext(); }
+function playNext(){ const ev = S.queue.shift(); if(!ev){ S.playing=false; return; } S.playing=true; ev.type==='scan'? playScan(ev) : playWeigh(ev); }
+function closeOv(){ clearTimeout(S.ovTimer); $('#ov').classList.remove('show'); $('#ov').innerHTML=''; S.playing=false; renderAll(); if(S.queue.length) setTimeout(playNext,300); }
+function ovShell(tag, step, total){
+  return `<div class="ov-top"><span class="tag">${tag}</span><span style="color:var(--muted);font-size:13px">${C().name}</span>
+   <div class="steps">${Array.from({length:total},(_,i)=>`<i class="${i<=step?'on':''}"></i>`).join('')}</div>
+   <button class="btn" style="margin-left:14px" onclick="closeOv()">Close</button></div>`;
+}
+function playScan(ev){
+  const calc = passportCalc(ev.asset_id); const ov = $('#ov');
+  if(!calc){ toast(`Unknown garment ${ev.asset_id}`); S.playing=false; return; }
+  if(calc.p.c !== S.cust){ S.cust = calc.p.c; $('#selCust').value = S.cust; setPrio(PRIO_DEFAULT[C().industry]||'water', false); }
+  const site = siteById(calc.p.s); S.highlight = site.id;
+  const scenes = [()=>scene1(calc, ev), ()=>scene2(calc, site), ()=>scene3(site)];
+  let i = 0; ov.classList.add('show');
+  const run = () => { if(i>=scenes.length){ closeOv(); openSite(site.id); return; } ov.innerHTML = ovShell('FIELD SCAN · '+ev.asset_id, i, scenes.length); scenes[i](); i++; clearTimeout(S.ovTimer); S.ovTimer = setTimeout(run, 6500); };
+  ov.onclick = e => { if(e.target.closest('button')||e.target.closest('.badge')) return; clearTimeout(S.ovTimer); run(); };
+  run();
+}
+function scene1(c, ev){
+  const ov = $('#ov'), n = c.cycles, R = 150, cx = 200, cy = 200;
+  const body = document.createElement('div'); body.className='ov-body';
+  body.innerHTML = `<div class="ov-vis"><svg viewBox="0 0 400 400" id="ring"></svg></div>
+   <div class="ov-text"><div class="eyebrow">Garment passport · ${c.p.cy[0][0].slice(0,4)}</div>
+   <h2>${c.prod.name}<br><span style="color:var(--muted);font-weight:600;font-size:.6em">${ev.asset_id} · ${siteById(c.p.s).name}</span></h2>
+   <div class="stats">
+    <div class="stat"><div class="n acc" id="s1a">0</div><div class="l">wash & service cycles ${badge('SIMULATED')}</div></div>
+    <div class="stat"><div class="n" id="s1b">0</div><div class="l">% delivered on time · avg ${fmt(c.avgH,0)} h turnaround</div></div>
+    <div class="stat"><div class="n acc" id="s1c">0</div><div class="l">L water saved vs ${B().name.toLowerCase()} ${badge('ESTIMATED','passport')}</div></div>
+    <div class="stat"><div class="n" id="s1d">0</div><div class="l">kg CO₂e saved ${badge('ESTIMATED','passport')}</div></div>
+   </div></div>`;
+  ov.appendChild(body); ov.insertAdjacentHTML('beforeend', `<div class="ov-foot"><span>This garment's ${n} cycles at ${fmt(c.prod.kg,2)} kg = ${fmt(c.kg,1)} kg washed by ${S.data.laundries[c.p.l].name}</span><span>click to continue</span></div>`);
+  const svg = $('#ring'); const defs = el('defs',{},svg); const f = el('filter',{id:'rg',x:'-50%',y:'-50%',width:'200%',height:'200%'},defs); el('feGaussianBlur',{stdDeviation:6},f);
+  el('circle',{cx,cy,r:R,fill:'none',stroke:'#16212d','stroke-width':22},svg);
+  const gap = 4, segA = 360/n;
+  const arc = (a0,a1,r)=>{ const p=(a)=>[cx+r*Math.cos((a-90)*Math.PI/180), cy+r*Math.sin((a-90)*Math.PI/180)]; const [x0,y0]=p(a0),[x1,y1]=p(a1); return `M${x0} ${y0} A ${r} ${r} 0 ${a1-a0>180?1:0} 1 ${x1} ${y1}`; };
+  c.p.cy.forEach((cyc,i)=>{ const a0=i*segA+gap/2, a1=(i+1)*segA-gap/2; const col = cyc[2]? 'var(--accent)' : 'var(--amber)';
+    const glow = el('path',{d:arc(a0,a1,R),fill:'none',stroke:col,'stroke-width':22,opacity:0,filter:'url(#rg)'},svg);
+    const p = el('path',{d:arc(a0,a1,R),fill:'none',stroke:col,'stroke-width':22,'stroke-linecap':'butt',opacity:0},svg);
+    const delay = 300 + i*(3600/n);
+    p.animate([{opacity:0},{opacity:1}],{duration:350,delay,fill:'forwards'}); glow.animate([{opacity:0},{opacity:.7},{opacity:.25}],{duration:900,delay,fill:'forwards'});
+    const am = (a0+a1)/2, lp = [cx+(R+34)*Math.cos((am-90)*Math.PI/180), cy+(R+34)*Math.sin((am-90)*Math.PI/180)];
+    const t = el('text',{x:lp[0],y:lp[1]+4,'text-anchor':'middle','font-size':11,fill:'#8696a8',opacity:0},svg); t.textContent = cyc[0].slice(5).replace('-','/');
+    t.animate([{opacity:0},{opacity:1}],{duration:300,delay,fill:'forwards'});
+  });
+  const mid = el('text',{x:cx,y:cy-6,'text-anchor':'middle','font-size':64,'font-weight':800,fill:'#e9eff6'},svg); mid.textContent='0';
+  const sub = el('text',{x:cx,y:cy+26,'text-anchor':'middle','font-size':14,fill:'#8696a8','letter-spacing':2},svg); sub.textContent='CYCLES IN 2025';
+  countUp(mid, n, x=>Math.round(x), 3600);
+  countUp($('#s1a'), n, x=>Math.round(x), 3600); countUp($('#s1b'), c.onTime, x=>fmt(x,0), 2000);
+  countUp($('#s1c'), c.water, x=>fmt(x,1), 2600); countUp($('#s1d'), c.co2, x=>fmt(x,2), 2600);
+}
+function scene2(c, site){
+  const ov = $('#ov'), N = site.service.garments_tracked, sorted = [...C().sites].sort((a,b)=>metric(b)-metric(a)), rank = sorted.findIndex(x=>x.id===site.id)+1;
+  const body = document.createElement('div'); body.className='ov-body';
+  const v = metric(site), P = PRIO[S.prio];
+  body.innerHTML = `<div class="ov-vis"><svg viewBox="0 0 400 400" id="swarm"></svg></div>
+   <div class="ov-text"><div class="eyebrow">Zoom out · delivery site</div>
+   <h2>${site.name}<br><span style="color:var(--muted);font-weight:600;font-size:.6em">1 of ${fmt(N)} garments · ${site.type}</span></h2>
+   <div class="stats">
+    <div class="stat"><div class="n acc" id="s2a">0</div><div class="l">${P.label}${S.prio==='service'?'':' ('+P.unit+')'} ${badge(P.kind,P.f)}</div></div>
+    <div class="stat"><div class="n" id="s2b">0</div><div class="l">rank among ${C().sites.length} sites</div></div>
+    <div class="stat"><div class="n" id="s2c">0</div><div class="l">kg washed in 2025 ${badge('SIMULATED')}</div></div>
+    <div class="stat"><div class="n" id="s2d">0</div><div class="l">repairs · ${short(site.repairs.avoided_co2e_kg.base)} kg CO₂e avoided ${badge('ESTIMATED','circularity')}</div></div>
+   </div></div>`;
+  ov.appendChild(body); ov.insertAdjacentHTML('beforeend', `<div class="ov-foot"><span>Each dot is one garment with a scan history at this site</span><span>click to continue</span></div>`);
+  const svg = $('#swarm'), cx=200, cy=200, golden = Math.PI*(3-Math.sqrt(5)), sp = Math.min(13, 175/Math.sqrt(N));
+  for(let i=1;i<N;i++){ const r = sp*Math.sqrt(i), a = i*golden; const d = el('circle',{cx, cy, r:2.6, fill:'var(--accent)', opacity:.75},svg);
+    d.animate([{cx:cx,cy:cy,opacity:0},{cx:cx+r*Math.cos(a), cy:cy+r*Math.sin(a), opacity:.75}],{duration:900,delay:200+i*(1600/N),fill:'forwards',easing:'cubic-bezier(.2,.8,.2,1)'}); }
+  const me = el('circle',{cx,cy,r:7,fill:'#fff'},svg); const ring = el('circle',{cx,cy,r:10,fill:'none',stroke:'#fff','stroke-width':2},svg);
+  ring.animate([{r:9,opacity:1},{r:34,opacity:0}],{duration:1500,iterations:Infinity});
+  countUp($('#s2a'), v, S.prio==='service'?x=>fmt(x,1)+'%':short, 2200); countUp($('#s2b'), rank, x=>'#'+Math.round(x), 1600);
+  countUp($('#s2c'), site.impact.washed_kg, short, 2200); countUp($('#s2d'), site.repairs.count, short, 2200);
+}
+function scene3(site){
+  const ov = $('#ov'), c = C(), P = PRIO[S.prio];
+  const body = document.createElement('div'); body.className='ov-body';
+  body.innerHTML = `<div class="ov-vis"><svg id="ovmap" style="width:min(64vh,100%)"></svg></div>
+   <div class="ov-text"><div class="eyebrow">Zoom out · whole account</div>
+   <h2>${c.name}<br><span style="color:var(--muted);font-weight:600;font-size:.6em">${c.sites.length} sites · ${fmt(c.service.garments_tracked)} garments · ${c.industry}</span></h2>
+   <div class="stats">
+    <div class="stat"><div class="n acc" id="s3a">0</div><div class="l">${P.label}${S.prio==='service'?'':' ('+P.unit+')'} ${badge(P.kind,P.f)}</div></div>
+    <div class="stat"><div class="n" id="s3b">0</div><div class="l">% cycles on time ${badge('SIMULATED')}</div></div>
+    <div class="stat"><div class="n" id="s3c">0</div><div class="l">repairs extended garment life ${badge('SIMULATED')}</div></div>
+    <div class="stat"><div class="n" id="s3d">0</div><div class="l">kg washed ${badge('SIMULATED')}</div></div>
+   </div>
+   <div style="margin-top:18px;color:var(--muted);font-size:14px">Next: ${c.observations.find(o=>o.theme===({water:'water',emissions:'water',circularity:'circularity',service:'service'})[S.prio]).question}</div>
+   </div>`;
+  ov.appendChild(body); ov.insertAdjacentHTML('beforeend', `<div class="ov-foot"><span>Same data, same formulas, from one garment to the whole account</span><span>click to open the site</span></div>`);
+  renderMap($('#ovmap'), {static:true, highlight:site.id, id:'ov'});
+  countUp($('#s3a'), metric(c), S.prio==='service'?x=>fmt(x,1):short, 2400); countUp($('#s3b'), c.service.on_time_pct, x=>fmt(x,1), 2000);
+  countUp($('#s3c'), c.repairs.count, short, 2200); countUp($('#s3d'), c.impact.washed_kg, short, 2200);
+}
+function playWeigh(ev){
+  const ov = $('#ov'), w = weighCalc(ev.kg); ov.classList.add('show');
+  ov.innerHTML = ovShell('FIELD WEIGH-IN', 0, 1) + `<div class="ov-body"><div class="weigh-card">
+    ${ev.photo?`<img class="photo" src="${ev.photo}" alt="scale photo">`:''}
+    <div class="eyebrow" style="color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-size:13px">Return bag weighed ${ev.reader?'· read by '+ev.reader:''} ${badge('FIELD_SCAN_DEMO')}</div>
+    <div class="kg"><span id="wkg">0</span><span style="font-size:.35em;color:var(--muted);letter-spacing:0"> kg</span></div>
+    <div class="arrow">≈ ${fmt(w.pieces,0)} garments ${badge('ESTIMATED')} &nbsp;→&nbsp; washed by Lindström instead of ${B().name.toLowerCase()}</div>
+    <div class="saved"><span id="wsv">0</span> L water saved</div>
+    <div style="color:var(--muted);margin-top:10px;font-size:15px">range ${fmt(w.waterLo,0)}–${fmt(w.waterHi,0)} L · ${fmt(w.co2,1)} kg CO₂e ${badge('ESTIMATED','weigh')}</div>
+  </div></div><div class="ov-foot"><span>Weight is the unit Lindström's laundry factors use, so no piece counting is needed</span><span>click to close</span></div>`;
+  ov.onclick = e => { if(e.target.closest('.badge')) return; closeOv(); };
+  countUp($('#wkg'), ev.kg, x=>fmt(x,1), 1500); setTimeout(()=>countUp($('#wsv'), w.water, x=>fmt(x,0), 1800), 700);
+  clearTimeout(S.ovTimer); S.ovTimer = setTimeout(closeOv, 9000);
+}
+
+/* ---------- events (gateway) ---------- */
+function onEvent(ev, replay){
+  if(S.events.some(e=>e.id===ev.id && ev.id!=null)) return;
+  S.events.push(ev); renderFeed();
+  if(!replay) enqueue(ev);
+}
+function connect(){
+  if(!/^https?:/.test(location.protocol)) return;
+  fetch('events').then(r=>r.ok?r.json():[]).then(list=>{ (list||[]).forEach(e=>onEvent(e,true)); }).catch(()=>{});
+  try{
+    const es = new EventSource('stream');
+    es.onopen = () => setLive(true);
+    es.onerror = () => setLive(false);
+    es.onmessage = m => { try{ onEvent(JSON.parse(m.data)); }catch(e){} };
+  }catch(e){ setLive(false); }
+}
+function setLive(on){ const l=$('#live'); l.classList.toggle('on',on); l.querySelector('span').textContent = on? 'Gateway live · UNO Q' : 'Gateway offline (demo keys work)'; }
+let simId = -1;
+function simulateScan(aid){ const ids = S.data.demo_assets; aid = aid || ids[Math.floor(Math.random()*ids.length)];
+  if(/^https?:/.test(location.protocol)){ fetch('api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({asset_id:aid,source:'dashboard-sim'})}).then(r=>{ if(!r.ok) throw 0; }).catch(()=>onEvent({id:simId--,type:'scan',asset_id:aid,ts:new Date().toISOString()})); }
+  else onEvent({id:simId--,type:'scan',asset_id:aid,ts:new Date().toISOString()}); }
+function simulateWeigh(kg){ kg = kg || +(8+Math.random()*9).toFixed(1); onEvent({id:simId--,type:'weigh',kg,ts:new Date().toISOString(),reader:'demo'}); }
+
+/* ---------- popovers ---------- */
+document.addEventListener('click', e=>{
+  const b = e.target.closest('.badge'); const pop = $('#pop');
+  if(!b){ if(!e.target.closest('.pop')) pop.style.display='none'; return; }
+  e.stopPropagation(); const k = b.dataset.b, f = b.dataset.f;
+  let extra = '';
+  if(k==='TEAM_ASSUMPTION' && !f) extra = S.data.assumptions.filter(a=>a.source==='TEAM_ASSUMPTION').map(a=>`• ${a.text}: ${a.rule}`).join('\n');
+  pop.innerHTML = `<b>${LABEL[k]}</b>${S.data.meta.status_legend[k]||''}${f&&FORMULA[f]?`<code>${FORMULA[f]()}</code>`:''}${extra?`<code>${extra}</code>`:''}`;
+  const r = b.getBoundingClientRect(); pop.style.display='block';
+  pop.style.left = Math.min(window.innerWidth-380, Math.max(10, r.left-20))+'px'; pop.style.top = (r.bottom+8 > window.innerHeight-200 ? r.top-pop.offsetHeight-8 : r.bottom+8)+'px';
+}, true);
+
+/* ---------- report ---------- */
+function buildReport(){
+  const c = C(), b = B(), v = c.impact.vs[S.base], sc = c.scorecard, rc = {green:'#22c55e',amber:'#f59e0b',red:'#ef4444'};
+  const sites = [...c.sites].sort((a,x)=>metric(x)-metric(a));
+  const st = k=>`<span class="st">[${k}]</span>`;
+  $('#report').innerHTML = `
+  <div class="muted">ThreadTrace · Customer Value &amp; Sustainability Review · ${new Date().toISOString().slice(0,10)}</div>
+  <h1>${c.name} — 2025 annual review</h1>
+  <div class="muted">${c.industry} · ${c.segment} · ${c.sites.length} delivery sites · compared with: ${b.name} · priority view: ${PRIO[S.prio].label}</div>
+  <p class="muted" style="margin-top:3mm">All customer, site and operational figures are synthetic/illustrative (Lindström x Since AI data pack). Not audited; not an approved customer claim.</p>
+  <h2>1. Account health</h2>
+  <table><tr><th>Area</th><th>Status</th><th>Value</th></tr>
+   <tr><td>Overall</td><td><span class="rag" style="background:${rc[sc.overall]}"></span>${sc.overall}</td><td>${st('TEAM_ASSUMPTION')} thresholds T3</td></tr>
+   <tr><td>Service performance</td><td><span class="rag" style="background:${rc[sc.service.rag]}"></span>${sc.service.rag}</td><td>${fmt(sc.service.value,1)}% cycles on time ${st('SIMULATED')}</td></tr>
+   <tr><td>Service adoption</td><td><span class="rag" style="background:${rc[sc.adoption.rag]}"></span>${sc.adoption.rag}</td><td>${fmt(sc.adoption.value,1)}% of allocated garments with scan activity ${st('ESTIMATED')}</td></tr>
+   <tr><td>Sustainability value</td><td><span class="rag" style="background:${rc[sc.sustainability.rag]}"></span>${sc.sustainability.rag}</td><td>${fmt(v.base.water_saved_l)} L water saved ${st('ESTIMATED')}</td></tr></table>
+  <h2>2. Value created in 2025</h2>
+  <table><tr><th>Indicator</th><th>Low</th><th>Base</th><th>High</th><th>Status</th></tr>
+   <tr><td>Water saved vs ${b.name} (L)</td><td>${fmt(v.low.water_saved_l)}</td><td><b>${fmt(v.base.water_saved_l)}</b></td><td>${fmt(v.high.water_saved_l)}</td><td>${st('ESTIMATED')}</td></tr>
+   <tr><td>CO₂e saved vs ${b.name} (kg)</td><td>${fmt(v.low.co2e_saved_kg)}</td><td><b>${fmt(v.base.co2e_saved_kg)}</b></td><td>${fmt(v.high.co2e_saved_kg)}</td><td>${st('ESTIMATED')}</td></tr>
+   <tr><td>CO₂e avoided by repairs (kg)</td><td>${fmt(c.repairs.avoided_co2e_kg.low)}</td><td><b>${fmt(c.repairs.avoided_co2e_kg.base)}</b></td><td>${fmt(c.repairs.avoided_co2e_kg.high)}</td><td>${st('ESTIMATED')}</td></tr>
+   <tr><td>Purchase cost avoided by repairs (€)</td><td>${fmt(c.repairs.avoided_cost_eur.low)}</td><td><b>${fmt(c.repairs.avoided_cost_eur.base)}</b></td><td>${fmt(c.repairs.avoided_cost_eur.high)}</td><td>${st('ESTIMATED')}</td></tr></table>
+  <table style="margin-top:3mm"><tr><th>Operations</th><th>2025</th></tr>
+   <tr><td>Garments tracked (scan history)</td><td>${fmt(c.service.garments_tracked)} ${st('SIMULATED')}</td></tr>
+   <tr><td>Active wearers (Dec)</td><td>${fmt(c.service.wearers_dec)} ${st('SIMULATED')}</td></tr>
+   <tr><td>Washed kg</td><td>${fmt(c.impact.washed_kg)} ${st('SIMULATED')}</td></tr>
+   <tr><td>Service cycles · on time · avg turnaround</td><td>${fmt(c.service.cycles)} · ${fmt(c.service.on_time_pct,1)}% · ${fmt(c.service.avg_cycle_hours,0)} h ${st('SIMULATED')}</td></tr>
+   <tr><td>Repairs completed</td><td>${fmt(c.repairs.count)} ${st('SIMULATED')}</td></tr>
+   <tr><td>Service requests</td><td>${fmt(c.service.service_requests)} ${st('SIMULATED')}</td></tr>
+   <tr><td>Allocated garments with no scan activity (avg / month)</td><td>${fmt(c.service.no_scan_avg)} — a signal to investigate, not proof of idle garments ${st('ESTIMATED')}</td></tr>
+   <tr><td>Textile waste allocated to the account</td><td>${fmt(c.waste_allocated_kg)} kg ${st('ESTIMATED')}</td></tr></table>
+  <h2>3. Questions for the steering committee</h2>
+  <table><tr><th>Observation</th><th>Question</th></tr>${c.observations.map(o=>`<tr><td>${o.text} ${st(o.status)}</td><td>${o.question}</td></tr>`).join('')}</table>
+  ${S.events.length?`<h2>4. Field evidence captured</h2><table><tr><th>Time</th><th>Event</th></tr>${S.events.map(e=>`<tr><td>${(e.ts||'').replace('T',' ').slice(0,16)}</td><td>${e.type==='scan'?'Garment scan '+e.asset_id:'Weigh-in '+fmt(e.kg,1)+' kg'} ${st('FIELD_SCAN_DEMO')}</td></tr>`).join('')}</table>`:''}
+  <h2 class="pg">Site drill-down (sorted by ${PRIO[S.prio].label.toLowerCase()})</h2>
+  <table><tr><th>Site</th><th>Garments</th><th>On time</th><th>No scan / mo</th><th>Water saved (L)</th><th>CO₂e saved (kg)</th><th>Repairs</th></tr>
+   ${sites.map(s=>`<tr><td>${s.name}</td><td>${fmt(s.service.garments_tracked)}</td><td>${fmt(s.service.on_time_pct,1)}%</td><td>${fmt(s.service.no_scan_avg)}</td><td>${fmt(s.impact.vs[S.base].base.water_saved_l)}</td><td>${fmt(s.impact.vs[S.base].base.co2e_saved_kg)}</td><td>${fmt(s.repairs.count)}</td></tr>`).join('')}</table>
+  <h2>Method, assumptions and limitations</h2>
+  <table><tr><th>ID</th><th>Assumption</th><th>Rule</th><th>Source / confidence</th></tr>${S.data.assumptions.map(a=>`<tr><td>${a.id}</td><td>${a.text}</td><td>${a.rule}</td><td>${a.source} · ${a.confidence}</td></tr>`).join('')}</table>
+  <p style="margin-top:3mm"><b>Context ${st('PUBLIC_REFERENCE')}:</b> ${S.data.public_reference.claim} ${S.data.public_reference.basis}</p>
+  <p class="muted" style="margin-top:3mm">Limitations: customer hierarchy, site mapping and all operational values are synthetic; waste and laundry impacts are allocated by share of washed kg; cost savings beyond avoided purchases are not evidenced in the data; field scans and weigh-ins are demo captures (QR codes stand in for UHF RFID).</p>`;
+}
+
+/* ---------- controls ---------- */
+function setPrio(p, rerender=true){ S.prio = p; document.body.dataset.prio = p; document.querySelectorAll('#segPrio button').forEach(b=>b.classList.toggle('on', b.dataset.p===p)); if(rerender) renderAll(); }
+function init(data){
+  S.data = data; S.kpis = load('kpis', []);
+  $('#selCust').innerHTML = Object.values(data.customers).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  $('#selBase').innerHTML = Object.entries(data.baselines).map(([id,b])=>`<option value="${id}" ${b.default?'selected':''}>${b.name}</option>`).join('');
+  $('#selCust').onchange = e => { S.cust = e.target.value; S.highlight=null; closeDrawer(); setPrio(PRIO_DEFAULT[C().industry]||'water'); };
+  $('#selBase').onchange = e => { S.base = e.target.value; renderAll(); };
+  document.querySelectorAll('#segPrio button').forEach(b=>b.onclick=()=>setPrio(b.dataset.p));
+  $('#btnReport').onclick = () => { buildReport(); window.print(); };
+  $('#btnKpi').onclick = () => $('#modal').classList.add('show');
+  $('#kpiCancel').onclick = () => $('#modal').classList.remove('show');
+  $('#kpiSave').onclick = () => { const name=$('#kpiName').value.trim()||$('#kpiMetric').selectedOptions[0].text, t=parseFloat($('#kpiTarget').value);
+    if(isNaN(t)){ toast('Enter a target'); return; } S.kpis.push({cust:S.cust,name,metric:$('#kpiMetric').value,target:t}); store('kpis',S.kpis); $('#modal').classList.remove('show'); renderFocus(); };
+  document.addEventListener('keydown', e=>{ if(e.target.matches('input,select')) return;
+    if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='Escape'){ closeOv(); closeDrawer(); $('#pop').style.display='none'; } });
+  setPrio(PRIO_DEFAULT[C().industry]||'water');
+  connect();
+  const q = new URLSearchParams(location.search); if(q.get('scan')) setTimeout(()=>simulateScan(q.get('scan')),600); if(q.get('weigh')) setTimeout(()=>simulateWeigh(+q.get('weigh')),600);
+}
+fetch('data.json').then(r=>r.json()).then(init).catch(e=>{ document.body.innerHTML = `<div style="padding:40px;color:#e9eff6;font-family:sans-serif">Could not load data.json (${e}). Serve this folder over http, e.g. <code>python3 server.py</code>.</div>`; });
+</script>
+</body>
+</html>

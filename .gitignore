@@ -1,0 +1,6 @@
+board/threadtrace.db
+board/static/photos/
+board/server.log
+board/.env
+__pycache__/
+*.pyc
