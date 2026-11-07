@@ -27,6 +27,7 @@ import re
 import sqlite3
 import threading
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -108,6 +109,33 @@ def passport_summary(aid):
     return {"product": prod["name"], "site": site["name"], "customer": cust["name"], "cycles": len(p["cy"]), "site_id": p["s"]}
 
 
+_model = {"name": GEMINI_MODEL}
+
+
+def pick_gemini_model():
+    """Ask the API which models this key can use and pick a current Flash model."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_KEY}&pageSize=200"
+    with urllib.request.urlopen(url, timeout=15) as r:
+        models = json.load(r).get("models", [])
+    names = [m["name"].split("/", 1)[-1] for m in models
+             if "generateContent" in m.get("supportedGenerationMethods", [])]
+    def score(n):
+        bad = any(w in n for w in ("tts", "audio", "image", "live", "embedding", "thinking", "exp", "preview"))
+        return (("flash" in n) and not bad, "lite" not in n, "latest" in n, n)
+    names.sort(key=score, reverse=True)
+    if not names:
+        raise RuntimeError("no model with generateContent for this key")
+    print(f"[gemini] available: {names[:8]} -> using {names[0]}", flush=True)
+    return names[0]
+
+
+def _gemini_call(model, body):
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_KEY}"
+    req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.load(r)
+
+
 def read_scale_with_gemini(jpeg_b64):
     """Ask Gemini to read the number on the scale display. Returns (kg or None, note)."""
     if not GEMINI_KEY:
@@ -117,16 +145,23 @@ def read_scale_with_gemini(jpeg_b64):
               "Convert to kilograms. If no readable scale is visible, use null.")
     body = {"contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/jpeg", "data": jpeg_b64}}]}],
             "generationConfig": {"response_mime_type": "application/json", "temperature": 0}}
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_KEY}"
-    req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=25) as r:
-            out = json.load(r)
+        try:
+            out = _gemini_call(_model["name"], body)
+        except urllib.error.HTTPError as e:
+            if e.code not in (400, 404):
+                raise
+            _model["name"] = pick_gemini_model()   # model retired or unknown: discover a current one
+            out = _gemini_call(_model["name"], body)
         text = out["candidates"][0]["content"]["parts"][0]["text"]
-        val = json.loads(text).get("kg")
+        m = re.search(r"\{.*\}", text, re.S)
+        val = json.loads(m.group(0) if m else text).get("kg")
         return (float(val) if val is not None else None), "gemini"
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode(errors="ignore")[:160]
+        return None, f"gemini error {e.code} ({_model['name']}): {detail}"
     except Exception as e:  # network, quota, parsing
-        return None, f"gemini error: {e}"
+        return None, f"gemini error ({_model['name']}): {e}"
 
 
 PHONE_CSS = """<meta name="viewport" content="width=device-width,initial-scale=1"><style>
@@ -245,7 +280,7 @@ class H(BaseHTTPRequestHandler):
         if path == "/led":
             return self._json(_led)
         if path == "/health":
-            return self._json({"ok": True, "gateway": GATEWAY, "gemini": bool(GEMINI_KEY), "model": GEMINI_MODEL})
+            return self._json({"ok": True, "gateway": GATEWAY, "gemini": bool(GEMINI_KEY), "model": _model["name"]})
         if path == "/stream":
             return self._stream()
         return self._static(path.lstrip("/"))
