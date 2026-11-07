@@ -205,6 +205,14 @@ header select{font-size:16px;padding:8px 12px}
 .scalebox[hidden]{display:none}
 .scalebar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;color:#e9eff6;background:#2b3038;font-size:16px}
 .scalebox iframe{flex:1;border:0;width:100%}
+.phoneqr{display:flex;gap:16px;align-items:center;justify-content:center;margin-top:16px;font-size:15px;color:var(--muted)}
+.phoneqr b{color:var(--text)} .phoneqr a{color:var(--accent)}
+.phoneqr .qr{background:#fff;padding:8px;border-radius:12px;width:112px;height:112px;display:grid;place-items:center;flex:none}
+.livetoday{margin-top:16px;padding:12px 14px;border-radius:12px;border:1px dashed rgba(74,222,128,.45);background:rgba(74,222,128,.06);font-size:16px;color:var(--text);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.livetoday .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 2s infinite}
+.livetoday b{font-family:var(--num);font-variant-numeric:tabular-nums}
+.livetoday.bump{animation:bump .9s}
+@keyframes bump{30%{transform:scale(1.03);border-color:var(--green)}}
 /* report (print) */
 #report{display:none}
 @media print{
@@ -252,6 +260,7 @@ header select{font-size:16px;padding:8px 12px}
     <div class="col">
       <div class="card mapcard"><svg class="map" id="map"></svg><div class="hint" id="mapNote"></div></div>
       <div class="liveline" id="feed"></div>
+      <div class="phoneqr"><div class="qr" id="weighQR"></div><div><b>Phone weigh-in</b><br>Scan with the phone camera to open the weigh-in page.<br><a href="cards" target="_blank">Garment QR cards ↗</a></div></div>
       <div class="demo"><button class="btn" onclick="simulateScan()">▣ Try a garment scan</button><button class="btn" onclick="openScale()">⚖ Open weigh station</button><button class="btn" onclick="simulateWeigh()">Try a weigh-in</button></div>
     </div>
   </div>
@@ -379,8 +388,22 @@ function renderHead(){
   const cost = S.prio==='circularity' ? `<div class="like" style="margin-top:6px">And about €${short(c.repairs.avoided_cost_eur.base)} of new garments not bought.</div>` : '';
   $('#cardHead').innerHTML = `<div class="say">${P.say(B().name.toLowerCase())}</div>
     <div><span class="big" id="headNum">0</span><span class="unit">${P.unit}</span></div>
-    <div class="mean">${P.mean}</div><div class="like" title="Rough comparison: 150 L per bathtub, 0.17 kg CO₂e per car km, 40,075 km around the Earth">${likeText(v)}</div>${cost}${rangeHtml}`;
+    <div class="mean">${P.mean}</div><div class="like" title="Rough comparison: 150 L per bathtub, 0.17 kg CO₂e per car km, 40,075 km around the Earth">${likeText(v)}</div>${cost}${rangeHtml}<div class="livetoday" id="liveToday" hidden></div>`;
+  renderLiveToday(false);
   countUp($('#headNum'), v, S.prio==='service'? x=>fmt(x,1) : short);
+}
+function liveTotals(){
+  const scans = S.events.filter(e=>e.type==='scan'), weighs = S.events.filter(e=>e.type==='weigh');
+  const kg = weighs.reduce((a,e)=>a+(+e.kg||0),0), w = weighCalc(kg);
+  const pcy = scans.reduce((a,e)=>a+((S.data.passports[e.asset_id]||{cy:[]}).cy.length),0);
+  return {scans:scans.length, weighs:weighs.length, kg, water:w.water, co2:w.co2, cycles:pcy};
+}
+function renderLiveToday(bump){
+  const box = $('#liveToday'); if(!box) return; const t = liveTotals();
+  if(!t.scans && !t.weighs){ box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = `<span class="dot"></span>Live from the field today: <b>${t.scans}</b> garment${t.scans===1?'':'s'} scanned · <b>${fmt(t.kg,1)} kg</b> weighed · <b>+${fmt(t.water,0)} L</b> water saved ${badge('FIELD_SCAN_DEMO')}`;
+  if(bump){ box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump'); }
 }
 function renderLabels(){
   const L = $('#labels'); if(!L) return;
@@ -485,6 +508,7 @@ function renderFeed(){
   const evs = S.events.slice(-12).reverse();
   if(!evs.length){ $('#feed').innerHTML = 'Scan a garment QR code with a phone to start.'; return; }
   const e = evs[0];
+  renderLiveToday(true);
   $('#feed').innerHTML = `Latest from the field (${(e.ts||'').slice(11,16)}): ${evLine(e)} ${badge('FIELD_SCAN_DEMO')}`;
   $('#feedAll').innerHTML = evs.map(x=>`<div class="ev"><span class="t">${(x.ts||'').slice(11,16)}</span>${x.photo?`<img src="${x.photo}" alt="">`:''}${evLine(x)}</div>`).join('');
 }
@@ -644,6 +668,9 @@ function onEvent(ev, replay){
   S.events.push(ev); renderFeed();
   if(!replay) enqueue(ev);
 }
+function loadQR(cb){ if(window.QRCode) return cb(); const add=(src,next)=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>window.QRCode?cb():next&&next(); s.onerror=()=>next&&next(); document.head.appendChild(s); };
+  add('vendor/qrcode.min.js', ()=>add('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', null)); }
+function drawQR(el, text, size){ loadQR(()=>{ el.innerHTML=''; new QRCode(el,{text, width:size, height:size, colorDark:'#0b1118', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M}); }); }
 function openScale(){ const f=$('#scaleframe'); if(!f.src) f.src='scale'; $('#scalebox').hidden=false; }
 function closeScale(){ $('#scalebox').hidden=true; }
 let maxId = 0;
@@ -710,7 +737,7 @@ function buildReport(){
    <tr><td>Textile waste allocated to the account</td><td>${fmt(c.waste_allocated_kg)} kg ${st('ESTIMATED')}</td></tr></table>
   <h2>3. Questions for the steering committee</h2>
   <table><tr><th>Observation</th><th>Question</th></tr>${c.observations.map(o=>`<tr><td>${o.text} ${st(o.status)}</td><td>${o.question}</td></tr>`).join('')}</table>
-  ${S.events.length?`<h2>4. Field evidence captured</h2><table><tr><th>Time</th><th>Event</th></tr>${S.events.map(e=>`<tr><td>${(e.ts||'').replace('T',' ').slice(0,16)}</td><td>${e.type==='scan'?'Garment scan '+e.asset_id:'Weigh-in '+fmt(e.kg,1)+' kg'} ${st('FIELD_SCAN_DEMO')}</td></tr>`).join('')}</table>`:''}
+  ${S.events.length?`<h2>4. Field evidence captured</h2><p>${(t=>`${t.scans} garment scans · ${fmt(t.kg,1)} kg weighed · about ${fmt(t.water,0)} L water and ${fmt(t.co2,1)} kg CO₂e saved vs ${b.name.toLowerCase()} (estimated)`)(liveTotals())}</p><table><tr><th>Time</th><th>Event</th></tr>${S.events.map(e=>`<tr><td>${(e.ts||'').replace('T',' ').slice(0,16)}</td><td>${e.type==='scan'?'Garment scan '+e.asset_id:'Weigh-in '+fmt(e.kg,1)+' kg'} ${st('FIELD_SCAN_DEMO')}</td></tr>`).join('')}</table>`:''}
   <h2 class="pg">Site drill-down (sorted by ${PRIO[S.prio].label.toLowerCase()})</h2>
   <table><tr><th>Site</th><th>Garments</th><th>On time</th><th>No scan / mo</th><th>Water saved (L)</th><th>CO₂e saved (kg)</th><th>Repairs</th></tr>
    ${sites.map(s=>`<tr><td>${s.name}</td><td>${fmt(s.service.garments_tracked)}</td><td>${fmt(s.service.on_time_pct,1)}%</td><td>${fmt(s.service.no_scan_avg)}</td><td>${fmt(s.impact.vs[S.base].base.water_saved_l)}</td><td>${fmt(s.impact.vs[S.base].base.co2e_saved_kg)}</td><td>${fmt(s.repairs.count)}</td></tr>`).join('')}</table>
@@ -739,6 +766,7 @@ function init(data){
   document.addEventListener('keydown', e=>{ if(e.target.matches('input,select')) return;
     if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='Escape'){ closeOv(); closeDrawer(); closeScale(); $('#pop').style.display='none'; } });
   setPrio(PRIO_DEFAULT[C().industry]||'water');
+  if(/^https?:/.test(location.protocol)) drawQR($('#weighQR'), location.origin + '/weigh', 96); else $('.phoneqr').hidden = true;
   connect();
   const q = new URLSearchParams(location.search); if(q.get('scan')) setTimeout(()=>simulateScan(q.get('scan')),600); if(q.get('weigh')) setTimeout(()=>simulateWeigh(+q.get('weigh')),600);
 }

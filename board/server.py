@@ -249,7 +249,7 @@ def page_cards(base):
 <span>{aid} · {info['site']}</span><span class=u>{base}/s/{aid}</span></div>""")
     cards.append(f"""<div class=card><div class=qr data-u="{base}/weigh"></div><b>Weigh-in station</b><span>Photograph the scale</span><span class=u>{base}/weigh</span></div>""")
     return f"""<!doctype html><meta charset=utf-8><title>ThreadTrace QR cards</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/vendor/qrcode.min.js"></script><script>window.QRCode||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\\/script>')</script>
 <style>body{{font-family:system-ui,sans-serif;margin:20px}}.grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}}
 .card{{border:1.5px dashed #999;border-radius:12px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:13px}}
 .card b{{font-size:16px}}.u{{font-family:monospace;font-size:9px;color:#666;word-break:break-all}}.qr{{margin-bottom:8px}}

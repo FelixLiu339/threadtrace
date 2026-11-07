@@ -4,3 +4,4 @@ board/server.log
 board/.env
 __pycache__/
 *.pyc
+board/static/vendor/

@@ -21,11 +21,17 @@ canvas{width:100%;height:auto;display:block}
 .keys button{width:110px;height:58px;border-radius:14px;border:0;background:linear-gradient(180deg,#f6f7f9,#c9ced5);box-shadow:0 4px 0 #9aa1aa,0 6px 10px rgba(0,0,0,.25);font-weight:800;letter-spacing:1px;color:#3d444d;cursor:pointer;font-size:14px}
 .keys button:active{transform:translateY(3px);box-shadow:0 1px 0 #9aa1aa}
 .keys button.go{background:linear-gradient(180deg,#5fd18a,#2e9d5a);color:#fff;box-shadow:0 4px 0 #1f6e3f,0 6px 10px rgba(0,0,0,.25)}
+.wrap{display:flex;gap:28px;align-items:center;justify-content:center;flex-wrap:wrap}
+.qrcard{background:#fff;border-radius:22px;padding:18px 18px 14px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.4);width:250px}
+.qrcard b{display:block;font-size:17px;color:#0b1118;margin-bottom:10px}
+.qrcard .qr{display:grid;place-items:center;min-height:210px}
+.qrcard small{display:block;color:#4a525c;font-size:12.5px;margin-top:10px;word-break:break-all}
 .note{color:#c9ced5;font-size:14px;text-align:center;margin-top:18px;max-width:560px}
 </style>
 </head>
 <body>
 <div>
+ <div class="wrap">
   <div class="scale">
     <div class="top"><span>RETURN STATION · PLATFORM SCALE</span><small>MAX 150 kg · d = 0.1 kg</small></div>
     <div class="lcdwrap"><div class="lcd">
@@ -36,7 +42,9 @@ canvas{width:100%;height:auto;display:block}
       <button id="bZero">ZERO</button><button id="bTare">TARE</button><button class="go" id="bNew">NEW BAG</button>
     </div>
   </div>
-  <p class="note">Simulated scale for the demo. Tap <b>NEW BAG</b> (or press Space) for a new weight, then photograph the display on the phone weigh-in page.</p>
+  <div class="qrcard"><b>📱 Scan with the phone camera</b><div class="qr" id="qr"></div><small id="qrurl"></small></div>
+ </div>
+  <p class="note">Simulated scale for the demo. Tap <b>NEW BAG</b> (or press Space) for a new weight, scan the QR code with the phone camera and photograph the display.</p>
 </div>
 <script>
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -76,6 +84,12 @@ document.getElementById('bNew').onclick = newBag;
 document.getElementById('bZero').onclick = zero;
 document.getElementById('bTare').onclick = zero;
 document.addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); newBag(); } });
+function loadQR(cb){ if(window.QRCode) return cb(); const add=(src,next)=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>window.QRCode?cb():next&&next(); s.onerror=()=>next&&next(); document.head.appendChild(s); };
+  add('vendor/qrcode.min.js', ()=>add('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', null)); }
+function drawQR(el, text, size){ loadQR(()=>{ el.innerHTML=''; new QRCode(el,{text, width:size, height:size, colorDark:'#0b1118', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M}); }); }
+const weighUrl = location.origin + '/weigh';
+document.getElementById('qrurl').textContent = weighUrl;
+drawQR(document.getElementById('qr'), weighUrl, 200);
 draw(0); set(true,iZero); setTimeout(newBag, 500);
 </script>
 </body>
