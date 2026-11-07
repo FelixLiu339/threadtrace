@@ -257,6 +257,18 @@ header select{font-size:16px;padding:8px 12px}
 .lot-big .n{font-size:clamp(56px,9vw,120px);font-weight:800;letter-spacing:-3px;line-height:1;color:var(--accent);text-shadow:0 0 40px rgba(var(--accent-rgb),.4);font-variant-numeric:tabular-nums}
 .lot-big .n.off{color:var(--amber);text-shadow:none}
 .lot-big .l{font-size:22px;color:var(--muted);margin-top:10px}
+.money{font-family:var(--num);font-weight:800;background:linear-gradient(180deg,#fff3c4,#f6c343 55%,#e09b1c);-webkit-background-clip:text;background-clip:text;color:transparent!important;text-shadow:none!important;font-variant-numeric:tabular-nums}
+b.money,span.money{font-size:1.18em;letter-spacing:-.2px}
+.lot-big .n.money{filter:drop-shadow(0 0 28px rgba(246,195,67,.35))}
+.lot-big .n.off{color:var(--red)}
+.whbox{position:fixed;inset:0;z-index:45;background:#070b10;display:flex;flex-direction:column}
+.whbox[hidden]{display:none!important}
+.whbox iframe{flex:1;border:0;width:100%}
+.phonenav{position:fixed;left:12px;right:12px;bottom:12px;z-index:60;display:flex;gap:8px;padding:8px;border-radius:16px;background:rgba(14,20,28,.92);border:1px solid var(--line);backdrop-filter:blur(8px)}
+.phonenav[hidden]{display:none!important}
+.phonenav a{flex:1;text-align:center;padding:11px 4px;border-radius:11px;background:var(--panel2);color:var(--text);text-decoration:none;font-weight:700;font-size:15px}
+.phonenav a.sc{background:rgba(var(--accent-rgb),.18);color:var(--accent)}
+body.phone .app{padding-bottom:90px}
 .at-cust{position:absolute;top:max(20px,3vh);right:max(24px,5vw);display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;z-index:2}
 .at-cust button{background:rgba(14,20,28,.7);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:8px 16px;font-size:15px;cursor:pointer;backdrop-filter:blur(6px)}
 .at-cust button.on{color:#04121b;background:var(--accent);border-color:transparent;font-weight:700}
@@ -330,7 +342,7 @@ body.reading #report .rag{display:inline-block;width:11px;height:11px;border-rad
             <div class="act-row"><div class="qr" id="lotQR"></div><div class="act-txt"><b>With a phone</b>Scan the package code. The phone sends its place: check in, repair or write-off.</div></div>
             <label class="act-lbl" for="selLot">Or pick a package</label>
             <div class="act-pick"><select id="selLot"></select></div>
-            <div class="act-btns"><button class="btn primary" onclick="simulateLot('checkin')">📍 Check in</button><button class="btn" onclick="simulateLot('repair')">🔧 Repair 3</button><button class="btn" onclick="window.open('cards','_blank')">🖨 Print QR cards</button></div>
+            <div class="act-btns"><button class="btn primary" onclick="openWarehouse()">🏬 Open the package room</button><button class="btn" onclick="simulateLot('checkin')">📍 Quick check-in</button><button class="btn" onclick="window.open('cards','_blank')">🖨 Print QR cards</button></div>
           </div>
         </div>
         <div class="act" id="actScan">
@@ -364,7 +376,7 @@ body.reading #report .rag{display:inline-block;width:11px;height:11px;border-rad
       <div class="card"><h3>What the labels mean</h3><div class="legendlist" id="labels"></div></div>
     </div>
   </details>
-  <div class="demo-keys">Keys: <b>A</b> attract screen · <b>S</b> scan · <b>W</b> weigh-in · <b>Esc</b> close</div>
+  <div class="demo-keys">Keys: <b>A</b> attract screen · <b>S</b> scan · <b>W</b> weigh-in · <b>P</b> package room · <b>Esc</b> close</div>
 </div>
 
 <div class="attract" id="attract" hidden>
@@ -377,6 +389,8 @@ body.reading #report .rag{display:inline-block;width:11px;height:11px;border-rad
   </div>
   <div class="at-qr"><b>Scan me with your phone camera</b><div class="qr" id="atQR"></div><span>or tap anywhere to explore</span></div>
 </div>
+<div class="whbox" id="whbox" hidden><div class="scalebar"><span>Package room · tap a box, then scan it like a phone in the workshop</span><button class="btn" onclick="closeWarehouse()">Close</button></div><iframe id="whframe" title="Package room"></iframe></div>
+<nav class="phonenav" id="phonenav" hidden><a href="#" onclick="phoneBack();return false">← Back</a><a href="m">🏠 Home</a><a class="sc" href="m?scan=1">📷 Scan</a></nav>
 <div class="scalebox" id="scalebox" hidden><div class="scalebar"><span>Weigh station · photograph this scale with the phone weigh-in page</span><button class="btn" onclick="closeScale()">Close</button></div><iframe id="scaleframe" title="Simulated scale"></iframe></div>
 <div class="drawer" id="drawer"></div>
 <div class="ov" id="ov"></div>
@@ -483,7 +497,7 @@ function renderHead(){
     rangeHtml = `<div class="range"><div class="track"></div><div class="band" style="left:${pct(lo)}%;width:${pct(hi)-pct(lo)}%"></div><div class="mid" style="left:calc(${pct(v)}% - 2px)"></div></div>
      <div class="range-l"><span>Likely between ${short(lo)} and ${short(hi)} ${P.unit}</span>${badge(P.kind,P.f)}</div>`;
   } else rangeHtml = `<div class="range-l" style="margin-top:14px"><span>${fmt(c.service.late_cycles)} late out of ${fmt(c.service.cycles)}</span>${badge(P.kind,P.f)}</div>`;
-  const cost = S.prio==='circularity' ? `<div class="like" style="margin-top:6px">And about €${short(c.repairs.avoided_cost_eur.base)} of new garments not bought.</div>` : '';
+  const cost = S.prio==='circularity' ? `<div class="like" style="margin-top:6px">And about <span class="money">€${short(c.repairs.avoided_cost_eur.base)}</span> of new garments not bought.</div>` : '';
   $('#cardHead').innerHTML = `<div class="say">${P.say(B().name.toLowerCase())}</div>
     <div><span class="big" id="headNum">0</span><span class="unit">${P.unit}</span></div>
     <div class="mean">${P.mean}</div><div class="like" title="Rough comparison: 150 L per bathtub, 0.17 kg CO₂e per car km, 40,075 km around the Earth">${likeText(v)}</div>${cost}${rangeHtml}<div class="livetoday" id="liveToday" hidden></div>`;
@@ -506,7 +520,7 @@ function renderLiveToday(bump){
   if(!t.scans && !t.weighs && !t.checkins && !t.repaired && !t.off){ box.hidden = true; return; }
   box.hidden = false;
   const parts = []; if(t.scans) parts.push(`<b>${t.scans}</b> garment${t.scans===1?'':'s'} scanned`); if(t.weighs) parts.push(`<b>${fmt(t.kg,1)} kg</b> weighed · <b>+${fmt(t.water,0)} L</b> water saved`);
-  if(t.checkins) parts.push(`<b>${t.checkins}</b> package${t.checkins===1?'':'s'} checked in`); if(t.repaired) parts.push(`<b>${t.repaired}</b> repaired · <b>€${fmt(t.eur,0)}</b> saved`);
+  if(t.checkins) parts.push(`<b>${t.checkins}</b> package${t.checkins===1?'':'s'} checked in`); if(t.repaired) parts.push(`<b>${t.repaired}</b> repaired · <b class="money">€${fmt(t.eur,0)}</b> saved`);
   box.innerHTML = `<span class="dot"></span>Live from the field today: ${parts.join(' · ')} ${badge('FIELD_SCAN_DEMO')}`;
   if(bump){ box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump'); }
 }
@@ -609,7 +623,7 @@ function evLine(e){
     return `▣ <b>${pn}</b> scanned in ${sn}`; }
   if(e.type!=='weigh'){ const i = lotInfo(e.lot_id); if(!i) return `📦 ${e.lot_id||''}`; const q = +e.qty||1, where = placeName(i.l.c, e.location||e.site_id);
     if(e.type==='checkin') return `📍 Package <b>${e.lot_id}</b> (${i.l.n} × ${i.pr.name}) checked in at ${where}`;
-    if(e.type==='repair') return `🔧 <b>${q} × ${i.pr.name}</b> repaired · package ${e.lot_id} · €${fmt(q*i.pr.cost_eur,0)} saved`;
+    if(e.type==='repair') return `🔧 <b>${q} × ${i.pr.name}</b> repaired · package ${e.lot_id} · <b class="money">€${fmt(q*i.pr.cost_eur,0)}</b> saved`;
     return `❌ <b>${q} × ${i.pr.name}</b> written off · package ${e.lot_id} · €${fmt(q*i.pr.cost_eur,0)} value`; }
   return `⚖ <b>${fmt(e.kg,1)} kg</b> weighed${e.lot_id?' · package '+e.lot_id:''} · ${short(weighCalc(e.kg).water)} L water saved`;
 }
@@ -782,7 +796,7 @@ function playLot(ev){
   const path = steps.map((s,k)=>`${k?'<div class="lot-line"><i></i></div>':''}<div class="lot-step ${k===2?'now':''}"><div class="ic">${s[0]}</div><b>${s[1]}</b><span>${s[2]}</span></div>`).join('');
   let big;
   if(ev.type==='checkin') big = `<div class="n" id="lotN">0</div><div class="l">${i.pr.name} garments in this package · ${i.cust.name} · ${i.site.name}</div>`;
-  else if(ev.type==='repair') big = `<div class="n" id="lotN">€0</div><div class="l">saved: ${q} × ${i.pr.name} repaired${ev.detail?' ('+ev.detail.toLowerCase()+')':''} instead of bought new ${badge('ESTIMATED','circularity')}<br>≈ ${fmt(q*i.pr.footprint_kgco2e,1)} kg CO₂e avoided</div>`;
+  else if(ev.type==='repair') big = `<div class="n money" id="lotN">€0</div><div class="l">saved: ${q} × ${i.pr.name} repaired${ev.detail?' ('+ev.detail.toLowerCase()+')':''} instead of bought new ${badge('ESTIMATED','circularity')}<br>≈ ${fmt(q*i.pr.footprint_kgco2e,1)} kg CO₂e avoided</div>`;
   else big = `<div class="n off" id="lotN">€0</div><div class="l">replacement value · ${q} × ${i.pr.name} written off${ev.detail?' ('+ev.detail.toLowerCase()+')':''} ${badge('ESTIMATED')}</div>`;
   ov.classList.add('show');
   ov.innerHTML = ovShell(tag+' · '+ev.lot_id, 0, 1) + `<div class="ov-body" style="display:flex;flex-direction:column;justify-content:center"><div class="lot-path">${path}</div><div class="lot-big">${big}</div></div>
@@ -862,9 +876,12 @@ function fillLots(){
 function simulateLot(action){
   const lid = $('#selLot').value, i = lotInfo(lid); if(!i) return;
   const qty = action==='repair' ? Math.min(3, i.l.n) : i.l.n, detail = action==='repair' ? 'ZIPPER' : null;
-  const loc = action==='checkin' ? i.site.laundry || i.l.s : i.l.s;
+  sendLot(lid, action, qty, detail, action==='checkin' ? i.site.laundry || i.l.s : i.l.s);
+}
+function sendLot(lid, action, qty, detail, loc){
+  const i = lotInfo(lid); if(!i) return;
   const local = () => onEvent({id:simId--, type:action, lot_id:lid, qty, location:loc, site_id:i.l.s, detail, ts:new Date().toISOString()});
-  if(/^https?:/.test(location.protocol)) fetch('api/lot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lot_id:lid,action,qty,detail,location:loc})}).then(r=>{ if(!r.ok) throw 0; }).catch(local);
+  if(GATEWAY_QR) fetch('api/lot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lot_id:lid,action,qty,detail,location:loc})}).then(r=>{ if(!r.ok) throw 0; }).catch(local);
   else local();
 }
 function setCustomer(cid){
@@ -885,7 +902,7 @@ function attractTexts(){
   if(GATEWAY_QR && demo){ $('.at-qr').hidden = false; drawQR($('#atQR'), location.origin + '/s/' + demo, 160); } else $('.at-qr').hidden = true;
 }
 function showAttract(){
-  if(AT.on || !S.data) return; if($('#ov').classList.contains('show') || !$('#scalebox').hidden) return;
+  if(AT.on || !S.data) return; if($('#ov').classList.contains('show') || !$('#scalebox').hidden || !$('#whbox').hidden) return;
   closeDrawer(); AT.on = true; const box = $('#attract'); box.hidden = false; box.classList.remove('fade');
   attractTexts();
   attractBuild(); AT.t0 = performance.now();
@@ -904,6 +921,9 @@ function setupAttract(){
   setInterval(()=>{ if(!AT.on && !S.playing && Date.now()-AT.idle > 90000) showAttract(); }, 5000);
   AT.idle = Date.now();
 }
+function openWarehouse(){ const f=$('#whframe'); $('#whbox').hidden=false; if(!f.src) f.src='warehouse.html'; else { try{ f.contentWindow.build(); }catch(e){} } }
+function closeWarehouse(){ $('#whbox').hidden=true; }
+function phoneBack(){ if(document.body.classList.contains('reading')) return closeReport(); if(history.length>1) history.back(); else location.href='m'; }
 function openScale(){ const f=$('#scaleframe'); if(!f.src) f.src='scale'; $('#scalebox').hidden=false; }
 function closeScale(){ $('#scalebox').hidden=true; }
 let maxId = 0;
@@ -944,7 +964,7 @@ function buildReport(){
   const c = C(), b = B(), v = c.impact.vs[S.base], sc = c.scorecard, rc = {green:'#22c55e',amber:'#f59e0b',red:'#ef4444'};
   const sites = [...c.sites].sort((a,x)=>metric(x)-metric(a));
   const st = k=>`<span class="st">[${k}]</span>`;
-  $('#report').innerHTML = `<div class="rtool"><button onclick="closeReport()">← Back to the review</button><button class="pdf" onclick="window.print()">Save as PDF</button></div>
+  $('#report').innerHTML = `<div class="rtool"><button onclick="closeReport()">← Back to the review</button>${document.body.classList.contains('phone')&&GATEWAY_QR?'<button onclick="location.href=\'m\'">🏠 Phone home</button>':''}<button class="pdf" onclick="window.print()">Save as PDF</button></div>
   <div class="muted">ThreadTrace · Customer Value &amp; Sustainability Review · ${new Date().toISOString().slice(0,10)}</div>
   <h1>${c.name} — 2025 annual review</h1>
   <div class="muted">${c.industry} · ${c.segment} · ${c.sites.length} delivery sites · compared with: ${b.name} · priority view: ${PRIO[S.prio].label}</div>
@@ -960,7 +980,7 @@ function buildReport(){
    <tr><td>Water saved vs ${b.name} (L)</td><td>${fmt(v.low.water_saved_l)}</td><td><b>${fmt(v.base.water_saved_l)}</b></td><td>${fmt(v.high.water_saved_l)}</td><td>${st('ESTIMATED')}</td></tr>
    <tr><td>CO₂e saved vs ${b.name} (kg)</td><td>${fmt(v.low.co2e_saved_kg)}</td><td><b>${fmt(v.base.co2e_saved_kg)}</b></td><td>${fmt(v.high.co2e_saved_kg)}</td><td>${st('ESTIMATED')}</td></tr>
    <tr><td>CO₂e avoided by repairs (kg)</td><td>${fmt(c.repairs.avoided_co2e_kg.low)}</td><td><b>${fmt(c.repairs.avoided_co2e_kg.base)}</b></td><td>${fmt(c.repairs.avoided_co2e_kg.high)}</td><td>${st('ESTIMATED')}</td></tr>
-   <tr><td>Purchase cost avoided by repairs (€)</td><td>${fmt(c.repairs.avoided_cost_eur.low)}</td><td><b>${fmt(c.repairs.avoided_cost_eur.base)}</b></td><td>${fmt(c.repairs.avoided_cost_eur.high)}</td><td>${st('ESTIMATED')}</td></tr></table>
+   <tr><td>Purchase cost avoided by repairs (€)</td><td>${fmt(c.repairs.avoided_cost_eur.low)}</td><td><b style="color:#a16207;font-size:1.12em">€${fmt(c.repairs.avoided_cost_eur.base)}</b></td><td>${fmt(c.repairs.avoided_cost_eur.high)}</td><td>${st('ESTIMATED')}</td></tr></table>
   <table style="margin-top:3mm"><tr><th>Operations</th><th>2025</th></tr>
    <tr><td>Garments tracked (scan history)</td><td>${fmt(c.service.garments_tracked)} ${st('SIMULATED')}</td></tr>
    <tr><td>Active wearers (Dec)</td><td>${fmt(c.service.wearers_dec)} ${st('SIMULATED')}</td></tr>
@@ -972,7 +992,7 @@ function buildReport(){
    <tr><td>Textile waste allocated to the account</td><td>${fmt(c.waste_allocated_kg)} kg ${st('ESTIMATED')}</td></tr></table>
   <h2>3. Questions for the steering committee</h2>
   <table><tr><th>Observation</th><th>Question</th></tr>${c.observations.map(o=>`<tr><td>${o.text} ${st(o.status)}</td><td>${o.question}</td></tr>`).join('')}</table>
-  ${S.events.length?`<h2>4. Field evidence captured</h2><p>${(t=>`${t.scans} garment scans · ${fmt(t.kg,1)} kg weighed · about ${fmt(t.water,0)} L water and ${fmt(t.co2,1)} kg CO₂e saved vs ${b.name.toLowerCase()} (estimated)`+(t.checkins||t.repaired||t.off?` · ${t.checkins} packages checked in · ${t.repaired} garments repaired, about €${fmt(t.eur,0)} of new garments not bought`+(t.off?` · ${t.off} written off (€${fmt(t.offEur,0)} replacement value)`:''):''))(liveTotals())}</p><table><tr><th>Time</th><th>Event</th></tr>${S.events.map(e=>`<tr><td>${(e.ts||'').replace('T',' ').slice(0,16)}</td><td>${e.type==='scan'?'Garment scan '+e.asset_id:(e.type==='weigh'?'Weigh-in '+fmt(e.kg,1)+' kg':evLine(e).replace(/<[^>]+>/g,''))} ${st('FIELD_SCAN_DEMO')}</td></tr>`).join('')}</table>`:''}
+  ${S.events.length?`<h2>4. Field evidence captured</h2><p>${(t=>`${t.scans} garment scans · ${fmt(t.kg,1)} kg weighed · about ${fmt(t.water,0)} L water and ${fmt(t.co2,1)} kg CO₂e saved vs ${b.name.toLowerCase()} (estimated)`+(t.checkins||t.repaired||t.off?` · ${t.checkins} packages checked in · ${t.repaired} garments repaired, about <b style="color:#a16207">€${fmt(t.eur,0)}</b> of new garments not bought`+(t.off?` · ${t.off} written off (€${fmt(t.offEur,0)} replacement value)`:''):''))(liveTotals())}</p><table><tr><th>Time</th><th>Event</th></tr>${S.events.map(e=>`<tr><td>${(e.ts||'').replace('T',' ').slice(0,16)}</td><td>${e.type==='scan'?'Garment scan '+e.asset_id:(e.type==='weigh'?'Weigh-in '+fmt(e.kg,1)+' kg':evLine(e).replace(/<[^>]+>/g,''))} ${st('FIELD_SCAN_DEMO')}</td></tr>`).join('')}</table>`:''}
   <h2 class="pg">Site drill-down (sorted by ${PRIO[S.prio].label.toLowerCase()})</h2>
   <table><tr><th>Site</th><th>Garments</th><th>On time</th><th>No scan / mo</th><th>Water saved (L)</th><th>CO₂e saved (kg)</th><th>Repairs</th></tr>
    ${sites.map(s=>`<tr><td>${s.name}</td><td>${fmt(s.service.garments_tracked)}</td><td>${fmt(s.service.on_time_pct,1)}%</td><td>${fmt(s.service.no_scan_avg)}</td><td>${fmt(s.impact.vs[S.base].base.water_saved_l)}</td><td>${fmt(s.impact.vs[S.base].base.co2e_saved_kg)}</td><td>${fmt(s.repairs.count)}</td></tr>`).join('')}</table>
@@ -1000,7 +1020,8 @@ function init(data){
     if(isNaN(t)){ toast('Enter a target'); return; } S.kpis.push({cust:S.cust,name,metric:$('#kpiMetric').value,target:t}); store('kpis',S.kpis); $('#modal').classList.remove('show'); renderFocus(); };
   document.addEventListener('keydown', e=>{ if(e.target.matches('input,select')) return;
     if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='a'||e.key==='A'){ AT.on? hideAttract() : showAttract(); }
-    if(e.key==='Escape'){ if(document.body.classList.contains('reading')) closeReport(); closeOv(); closeDrawer(); closeScale(); if(AT.on) hideAttract(); $('#pop').style.display='none'; } });
+    if(e.key==='p'||e.key==='P') openWarehouse();
+    if(e.key==='Escape'){ closeWarehouse(); if(document.body.classList.contains('reading')) closeReport(); closeOv(); closeDrawer(); closeScale(); if(AT.on) hideAttract(); $('#pop').style.display='none'; } });
   setPrio(PRIO_DEFAULT[C().industry]||'water');
   if(GATEWAY_QR){ drawQR($('#weighQR'), location.origin + '/weigh', 96); drawQR($('#scanQR'), location.origin + '/s/' + (((S.data.demo_assets||[]).find(a=>(S.data.passports[a]||{}).c===S.cust))||''), 96); }
   else { $('#weighQR').hidden = true; $('#scanQR').hidden = true; }
@@ -1010,6 +1031,7 @@ function init(data){
   const q = new URLSearchParams(location.search);
   if(q.get('cust') && S.data.customers[q.get('cust')]) setCustomer(q.get('cust'));
   const phone = window.innerWidth < 760;
+  if(phone){ document.body.classList.add('phone'); if(GATEWAY_QR) $('#phonenav').hidden = false; }
   if(q.get('play')){ const a = q.get('play'); setTimeout(()=>onEvent({id: simId--, type:'scan', asset_id:a, ts:new Date().toISOString(), local:true}), 600); }
   if(q.get('report')) setTimeout(openReport, 300);
   if(!phone && !q.get('scan') && !q.get('weigh') && !q.get('play') && !q.get('report') && q.get('attract')!=='0') setTimeout(showAttract, 400); if(q.get('scan')) setTimeout(()=>simulateScan(q.get('scan')),600); if(q.get('weigh')) setTimeout(()=>simulateWeigh(+q.get('weigh')),600);

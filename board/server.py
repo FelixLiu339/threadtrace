@@ -244,7 +244,11 @@ h1{font-size:26px;margin:0 0 6px}.m{color:#8696a8;font-size:15px;line-height:1.5
 background:#38bdf8;color:#04121b;font-size:17px;font-weight:700;margin-top:18px;text-align:center;text-decoration:none;box-sizing:border-box}
 .g{background:#121a24;color:#e9eff6;border:1px solid #1d2834}input{width:100%;padding:14px;border-radius:12px;border:1px solid #1d2834;background:#0e141c;color:#e9eff6;font-size:17px;box-sizing:border-box}
 img{max-width:100%;border-radius:14px;margin-top:14px}.tag{font-family:monospace;font-size:11px;color:#4ade80;border:1px solid #166534;border-radius:5px;padding:2px 6px}
-</style>"""
+.nav{display:flex;gap:8px;margin:-12px 0 20px}.nav a{flex:1;text-align:center;padding:11px 6px;border-radius:12px;background:#0e141c;border:1px solid #1d2834;color:#e9eff6;text-decoration:none;font-size:15px;font-weight:600}
+.nav a.sc{background:#0b2a3c;border-color:#1e4a66;color:#7dd3fc}
+.money{font-weight:800;background:linear-gradient(180deg,#fff3c4,#f6c343 55%,#e09b1c);-webkit-background-clip:text;background-clip:text;color:transparent!important;text-shadow:none!important}
+</style>
+<nav class=nav><a href="#" onclick="if(history.length>1){history.back()}else{location.href='/m'};return false">← Back</a><a href="/m">🏠 Home</a><a class=sc href="/m?scan=1">📷 Scan</a></nav>"""
 
 
 def page_scan(aid, info):
@@ -326,7 +330,7 @@ select{{width:100%;padding:14px;border-radius:12px;border:1px solid #1d2834;back
 <div class=form id=fOff hidden><div class=row><div><span class=lbl>Garments</span><input id=oq type=number min=1 max={info['qty']} value=1 inputmode=numeric></div>
 <div><span class=lbl>Reason</span><select id=or>{reasons}</select></div></div><button class=b id=sOff>Send write-off</button></div>
 <a class="b g" href="/weigh?lot={lid}">⚖ Weigh this package</a>
-<div class=res id=res hidden><div class=kg id=r1 style="font-size:34px"></div><div class=w id=r2 style="font-size:30px"></div><div class=s id=r3></div>
+<div class=res id=res hidden><div class=kg id=r1 style="font-size:34px"></div><div class=w id=r2 style="font-size:36px"></div><div class=s id=r3></div>
 <div class=s style="color:#4ade80;margin-top:12px">▲ Also shown on the big screen</div></div>
 <div class=card><b>Recent field events</b><ul id=hist>{hrows}</ul></div>
 <a class="b g" href="/?attract=0&cust={info['customer_id']}">📊 Open the {info['customer']} review</a>
@@ -338,8 +342,8 @@ async function send(action, qty, detail){{
   const j=await r.json(); if(!j.ok){{alert(j.note);return;}}
   const res=$('res'); res.hidden=false;
   if(action==='checkin'){{ $('r1').textContent='📍 Checked in'; $('r2').textContent=$('loc').selectedOptions[0].text; $('r3').textContent='{info['qty']} × {info['product']} · '+j.event.ts.slice(0,16).replace('T',' '); }}
-  else if(action==='repair'){{ $('r1').textContent='🔧 '+qty+' repaired'; $('r2').textContent='≈ €'+j.impact.eur+' saved'; $('r3').textContent='replacement avoided · ≈ '+j.impact.co2_kg+' kg CO₂e avoided · estimate'; }}
-  else {{ $('r1').textContent='❌ '+qty+' written off'; $('r2').textContent='≈ €'+j.impact.eur; $('r3').textContent='replacement value · '+detail+' · estimate'; }}
+  else if(action==='repair'){{ $('r1').textContent='🔧 '+qty+' repaired'; $('r2').textContent='≈ €'+j.impact.eur+' saved'; $('r2').className='w money'; $('r3').textContent='replacement avoided · ≈ '+j.impact.co2_kg+' kg CO₂e avoided · estimate'; }}
+  else {{ $('r1').textContent='❌ '+qty+' written off'; $('r2').textContent='≈ €'+j.impact.eur; $('r2').className='w'; $('r2').style.color='#f87171'; $('r3').textContent='replacement value · '+detail+' · estimate'; }}
   res.scrollIntoView({{behavior:'smooth'}});
 }}
 $('bIn').onclick=()=>send('checkin',{info['qty']},'');
@@ -348,6 +352,53 @@ $('bOff').onclick=()=>{{ $('fOff').hidden=!$('fOff').hidden; $('fRep').hidden=tr
 $('sRep').onclick=()=>send('repair',Math.max(1,parseInt($('rq').value)||1),$('rt').value);
 $('sOff').onclick=()=>send('writeoff',Math.max(1,parseInt($('oq').value)||1),$('or').value);
 if({json.dumps(act or '')}==='repair') {{ $('fRep').hidden=false; }}
+</script>"""
+
+
+def page_home(cid, scan):
+    cid = cid if cid in DATA["customers"] else next(iter(DATA["customers"]))
+    custs = "".join(f"<option value='{k}'{' selected' if k == cid else ''}>{c['name']}</option>" for k, c in DATA["customers"].items())
+    lots = [k for k in DATA.get("demo_lots", []) if DATA["lots"][k]["c"] == cid]
+    lots += [k for k, l in DATA["lots"].items() if l["c"] == cid and k not in lots][:6 - len(lots)]
+    lrows = "".join(f"<a class='b g li' href='/p/{k}'><b>📦 {k}</b><span>{lot_summary(k)['qty']} × {lot_summary(k)['product']} · {lot_summary(k)['site']}</span></a>" for k in lots)
+    return f"""<!doctype html><title>ThreadTrace</title>{PHONE_CSS}
+<style>.li{{text-align:left;display:flex;flex-direction:column;gap:2px;padding:14px 16px;margin-top:10px}}.li span{{color:#8696a8;font-size:14px;font-weight:400}}
+select{{width:100%;padding:13px;border-radius:12px;border:1px solid #1d2834;background:#0e141c;color:#e9eff6;font-size:16px}}
+.scan{{display:flex;flex-direction:column;align-items:center;gap:6px;padding:26px 16px;font-size:20px}} .scan small{{font-size:14px;font-weight:500;opacity:.8}}
+h3{{margin:26px 0 0;font-size:15px;color:#8696a8;font-weight:600;text-transform:uppercase;letter-spacing:1px}}</style>
+<h1>ThreadTrace</h1><p class=m>Customer value review · phone</p>
+<select id=cu onchange="location.href='/m?cust='+this.value">{custs}</select>
+<label class="b scan" for=cam>📷 Scan a QR code<small>package or garment · opens the camera</small></label>
+<input id=cam type=file accept="image/*" capture=environment hidden>
+<p class=m id=st style="text-align:center"></p>
+<h3>Packages</h3>{lrows}
+<h3>More</h3>
+<a class="b g" href="/weigh">⚖ Weigh-in</a>
+<a class="b g" href="/?attract=0&cust={cid}">📊 Open the review</a>
+<a class="b g" href="/?attract=0&cust={cid}&report=1">📄 Read the annual report</a>
+<canvas id=cv hidden></canvas>
+<script>
+const st=document.getElementById('st');
+function load(src,next){{const s=document.createElement('script');s.src=src;s.onload=()=>window.jsQR?0:next&&next();s.onerror=()=>next&&next();document.head.appendChild(s);}}
+load('/vendor/jsQR.min.js',()=>load('https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js',()=>load('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js')));
+function go(t){{
+  let m=t.match(/(\\/(?:p|s)\\/[A-Za-z0-9_-]+|\\/weigh[^\\s]*)/); if(m) return location.href=m[1];
+  m=t.match(/package:([A-Za-z0-9_-]+)/); if(m) return location.href='/p/'+m[1];
+  st.textContent='This QR is not a ThreadTrace code: '+t.slice(0,60);
+}}
+document.getElementById('cam').onchange=e=>{{
+  const f=e.target.files[0]; if(!f) return; st.textContent='Reading the QR code…';
+  if(!window.jsQR){{st.textContent='QR reader not loaded yet. Try again in a second.';return;}}
+  const img=new Image(); img.onload=()=>{{
+    const cv=document.getElementById('cv'), x=cv.getContext('2d',{{willReadFrequently:true}});
+    for(const max of [1200,800,1600]){{
+      const k=Math.min(1,max/Math.max(img.width,img.height)); cv.width=img.width*k; cv.height=img.height*k; x.drawImage(img,0,0,cv.width,cv.height);
+      const r=jsQR(x.getImageData(0,0,cv.width,cv.height).data,cv.width,cv.height); if(r){{st.textContent='Found '+r.data; return go(r.data);}}
+    }}
+    st.textContent='No QR code found. Hold the phone closer and try again.';
+  }}; img.src=URL.createObjectURL(f);
+}};
+if({json.dumps(bool(scan))}) document.querySelector('.scan').animate([{{boxShadow:'0 0 0 0 rgba(56,189,248,.8)'}},{{boxShadow:'0 0 0 18px rgba(56,189,248,0)'}}],{{duration:1100,iterations:3}});
 </script>"""
 
 
@@ -427,6 +478,11 @@ class H(BaseHTTPRequestHandler):
             return self._send(200 if info else 404, page_lot(m.group(1), info, (q.get("act") or [""])[0], (q.get("g") or [""])[0]))
         if path == "/weigh":
             return self._send(200, PAGE_WEIGH)
+        if path in ("/m", "/m/", "/phone"):
+            q = parse_qs(urlparse(self.path).query)
+            return self._send(200, page_home((q.get("cust") or [""])[0], (q.get("scan") or [""])[0]))
+        if path == "/warehouse":
+            return self._static("warehouse.html")
         if path == "/scale":
             return self._static("scale.html")
         if path == "/cards":

@@ -29,6 +29,8 @@ Scanning every garment is not realistic in daily work. So each package gets one 
 - **Check in**: the phone picks the place (customer site or Lindström laundry). This gives location history per package.
 - **Repair / write-off**: scan the package (or one garment's QR, which links to its package), type the number of garments and the reason.
 - **Weigh**: `/weigh?lot=PK0001` links a weigh-in to the package.
+- **Package room** (`/warehouse.html`, key **P** on the big screen): a simulated workshop shelf. Tap a box to open it, see its QR and location, and simulate a phone scan.
+- **Phone home** (`/m`): every phone page has Back / Home / Scan. Scan opens the camera and reads the QR from the photo (jsQR), so the phone can always get back to scanning.
 - Money saved = repaired garments × purchase cost (estimated). Production and delivery dates are demo values (T7). Cleaning and delivery prices are a data gap (T8).
 
 ## Architecture

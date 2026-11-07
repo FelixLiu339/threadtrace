@@ -5,6 +5,7 @@ cd "$(dirname "$0")"
 [ -f .env ] && set -a && . ./.env && set +a
 mkdir -p static/vendor
 [ -s static/vendor/qrcode.min.js ] || curl -fsSL -m 20 -o static/vendor/qrcode.min.js https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js || echo "note: could not download the QR library; pages will try the CDN"
+[ -s static/vendor/jsQR.min.js ] || curl -fsSL -m 20 -o static/vendor/jsQR.min.js https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js || echo "note: could not download the QR reader; the phone page will try the CDN"
 pkill -f "python3 server.py" 2>/dev/null
 nohup python3 server.py > server.log 2>&1 &
 sleep 1
