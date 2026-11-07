@@ -161,7 +161,7 @@ header select{font-size:16px;padding:8px 12px}
 .seg button{font-size:15px;padding:8px 14px}
 .lead{font-size:20px;margin:22px 0 18px;color:var(--muted)}
 .lead b{color:var(--text)}
-.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
+.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:stretch}
 .herocard{padding:28px 30px}
 .herocard .say{font-size:19px;color:var(--muted);margin-bottom:6px}
 .herocard .big{font-family:var(--num);font-size:clamp(56px,7vw,104px);font-weight:800;letter-spacing:-2px;line-height:1;color:var(--accent);text-shadow:0 0 40px rgba(var(--accent-rgb),.35);font-variant-numeric:tabular-nums}
@@ -257,6 +257,18 @@ header select{font-size:16px;padding:8px 12px}
 .lot-big .n{font-size:clamp(56px,9vw,120px);font-weight:800;letter-spacing:-3px;line-height:1;color:var(--accent);text-shadow:0 0 40px rgba(var(--accent-rgb),.4);font-variant-numeric:tabular-nums}
 .lot-big .n.off{color:var(--amber);text-shadow:none}
 .lot-big .l{font-size:22px;color:var(--muted);margin-top:10px}
+.ambient{position:relative;flex:1;min-height:230px;overflow:hidden;padding:0;display:flex;align-items:flex-end;background:radial-gradient(ellipse at 30% 40%,rgba(var(--accent-rgb),.07),transparent 60%),var(--panel)}
+.ambient canvas{position:absolute;inset:0;width:100%;height:100%}
+.amb-text{position:relative;padding:26px 28px 44px;max-width:640px}
+.amb-eyebrow{font-size:14px;color:var(--muted);letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px}
+.amb-line{font-family:var(--num);font-size:clamp(22px,1.9vw,30px);font-weight:800;letter-spacing:-.5px;line-height:1.25}
+.amb-line .acc{color:var(--accent)}
+.amb-text.out{animation:ambOut .5s forwards}.amb-text.in{animation:ambIn .7s cubic-bezier(.2,.8,.2,1)}
+@keyframes ambOut{to{opacity:0;transform:translateY(-14px)}}@keyframes ambIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.amb-dots{position:absolute;left:28px;bottom:18px;display:flex;gap:6px}
+.amb-dots i{width:18px;height:4px;border-radius:2px;background:var(--line);transition:background .4s,width .4s}
+.amb-dots i.on{background:var(--accent);width:30px}
+@media (prefers-reduced-motion:reduce){.amb-text.out,.amb-text.in{animation:none}}
 .money{font-family:var(--num);font-weight:800;background:linear-gradient(180deg,#fff3c4,#f6c343 55%,#e09b1c);-webkit-background-clip:text;background-clip:text;color:transparent!important;text-shadow:none!important;font-variant-numeric:tabular-nums}
 b.money,span.money{font-size:1.18em;letter-spacing:-.2px}
 .lot-big .n.money{filter:drop-shadow(0 0 28px rgba(246,195,67,.35))}
@@ -331,6 +343,9 @@ body.reading #report .rag{display:inline-block;width:11px;height:11px;border-rad
       <div class="card herocard" id="cardHead"></div>
       <div class="pills" id="cardScore"></div>
       <div class="card talk" id="obs"></div>
+      <div class="card ambient" id="ambient" aria-live="polite"><canvas id="ambCv" aria-hidden="true"></canvas>
+        <div class="amb-text"><div class="amb-eyebrow" id="ambEy"></div><div class="amb-line" id="ambLine"></div></div>
+        <div class="amb-dots" id="ambDots"></div></div>
     </div>
     <div class="col">
       <div class="card mapcard"><svg class="map" id="map"></svg><div class="hint" id="mapNote"></div></div>
@@ -819,6 +834,50 @@ function onEvent(ev, replay){
 function loadQR(cb){ if(window.QRCode) return cb(); const add=(src,next)=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>window.QRCode?cb():next&&next(); s.onerror=()=>next&&next(); document.head.appendChild(s); };
   add('vendor/qrcode.min.js', ()=>add('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', null)); }
 function drawQR(el, text, size){ loadQR(()=>{ el.innerHTML=''; new QRCode(el,{text, width:size, height:size, colorDark:'#0b1118', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M}); }); }
+/* ---------- ambient card: slow particle threads + rotating taglines ---------- */
+const AMB = {i:0, parts:null, raf:0, vis:true, t0:performance.now()};
+function ambLines(){
+  const c = C(), P = PRIO[S.prio], t = liveTotals(), b = B().name.toLowerCase();
+  const L = [
+    ['One QR per package', `Scan once, track <span class="acc">25 garments</span>. The phone adds the place.`],
+    ['This account', `<span class="acc">${fmt(c.service.garments_tracked)}</span> garments · ${c.sites.length} sites · one living review.`],
+    [P.label, `<span class="acc">${short(metric(c))} ${P.unit}</span> ${S.prio==='service'?'of cycles on time in 2025.':'vs '+b+' in 2025.'}`],
+    ['Repair before replace', `Repairs kept garments in use: about <span class="money">€${short(c.repairs.avoided_cost_eur.base)}</span> of new garments not bought.`],
+    ['Every dot is a garment', `Same data, same formulas, from one garment to the whole account.`],
+  ];
+  if(t.repaired || t.scans || t.weighs || t.checkins) L.splice(1,0,['Live from the field today', `${t.checkins?`<span class="acc">${t.checkins}</span> packages checked in · `:''}${t.repaired?`<span class="money">€${fmt(t.eur,0)}</span> saved by repairs`:(t.weighs?`<span class="acc">+${fmt(t.water,0)} L</span> water saved`:`<span class="acc">${t.scans}</span> garments scanned`)}.`]);
+  return L;
+}
+function ambShow(first){
+  const box = $('.amb-text'); if(!box || !S.data) return; const L = ambLines(); AMB.i %= L.length;
+  const put = () => { const [e,l] = L[AMB.i]; $('#ambEy').textContent = e; $('#ambLine').innerHTML = l;
+    $('#ambDots').innerHTML = L.map((_,k)=>`<i class="${k===AMB.i?'on':''}"></i>`).join(''); box.classList.remove('out'); box.classList.add('in'); };
+  if(first) return put();
+  box.classList.remove('in'); box.classList.add('out'); setTimeout(put, 480);
+}
+function ambFrame(now){
+  const cv = $('#ambCv'); if(!cv) return; const r = cv.getBoundingClientRect(), d = Math.min(2, devicePixelRatio||1);
+  if(cv.width !== Math.round(r.width*d) || cv.height !== Math.round(r.height*d)){ cv.width = Math.round(r.width*d); cv.height = Math.round(r.height*d); }
+  if(!AMB.parts) AMB.parts = Array.from({length:150}, (_,i)=>({k:i%5, u:Math.random(), j:(Math.random()-.5)*.05, r:1+Math.random()*1.8, s:.5+Math.random()}));
+  const g = cv.getContext('2d'), W = cv.width, H = cv.height, t = (now-AMB.t0)/1000;
+  const rgb = getComputedStyle(document.body).getPropertyValue('--accent-rgb').trim() || '56,189,248';
+  g.clearRect(0,0,W,H);
+  for(const p of AMB.parts){
+    p.u += 0.0009*p.s; if(p.u > 1.05) p.u -= 1.1;
+    const y0 = .14 + .16*p.k, x = p.u*W, y = (y0 + p.j + .06*Math.sin(p.u*6.3*(1+p.k*.15) + t*.5 + p.k))*H*0.72;
+    g.fillStyle = `rgba(${rgb},${.18 + .5*Math.sin(p.u*Math.PI)})`; g.fillRect(x, y, p.r*d, p.r*d);
+  }
+  AMB.raf = requestAnimationFrame(ambFrame);
+}
+function setupAmbient(){
+  const el = $('#ambient'); if(!el) return; ambShow(true);
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const run = on => { cancelAnimationFrame(AMB.raf); if(on && !still) AMB.raf = requestAnimationFrame(ambFrame); };
+  new IntersectionObserver(es => { AMB.vis = es[0].isIntersecting; run(AMB.vis && !document.hidden); }).observe(el);
+  document.addEventListener('visibilitychange', () => run(AMB.vis && !document.hidden));
+  setInterval(() => { if(AMB.vis && !document.hidden && !AT.on){ AMB.i++; ambShow(false); } }, 6500);
+}
+
 /* ---------- attract screen (idle) ---------- */
 const GATEWAY_QR = /^https?:/.test(location.protocol);
 const AT = {on:false, raf:0, parts:[], t0:0, mouse:{x:-9999,y:-9999}, converge:null, idle:0};
@@ -887,7 +946,7 @@ function sendLot(lid, action, qty, detail, loc){
 function setCustomer(cid){
   if(!S.data.customers[cid]) return;
   S.cust = cid; $('#selCust').value = cid; S.highlight = null; closeDrawer();
-  setPrio(PRIO_DEFAULT[C().industry]||'water'); fillGarments(); fillLots();
+  setPrio(PRIO_DEFAULT[C().industry]||'water'); fillGarments(); fillLots(); if($('#ambDots')&&$('#ambDots').innerHTML){ AMB.i=0; ambShow(true); }
   const demo = (S.data.demo_assets||[]).find(a=>(S.data.passports[a]||{}).c===cid);
   if(GATEWAY_QR && demo) drawQR($('#scanQR'), location.origin + '/s/' + demo, 96);
   if(AT.on){ attractTexts(); attractBuild(); }
@@ -1027,7 +1086,7 @@ function init(data){
   else { $('#weighQR').hidden = true; $('#scanQR').hidden = true; }
   fillGarments(); fillLots(); toggleAct('actLot');
   connect();
-  setupAttract();
+  setupAttract(); setupAmbient();
   const q = new URLSearchParams(location.search);
   if(q.get('cust') && S.data.customers[q.get('cust')]) setCustomer(q.get('cust'));
   const phone = window.innerWidth < 760;
