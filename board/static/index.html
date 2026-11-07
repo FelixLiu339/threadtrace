@@ -5,20 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ThreadTrace</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Inter:wght@600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#070b10; --panel:#0e141c; --panel2:#121a24; --line:#1d2834; --text:#e9eff6; --muted:#8696a8; --dim:#56657a;
+  --bg:#070b10; --panel:#0e141c; --panel2:#121a24; --line:#1d2834; --text:#e9eff6; --muted:#9aa9ba; --dim:#6b7b8f; --num:'Inter',system-ui,sans-serif;
   --accent:#38bdf8; --accent-rgb:56,189,248;
   --green:#22c55e; --amber:#f5a524; --red:#ef4444;
-  --radius:14px; --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  --radius:14px; --font:'Atkinson Hyperlegible','Inter',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
 }
 body[data-prio="water"]{--accent:#38bdf8;--accent-rgb:56,189,248}
 body[data-prio="emissions"]{--accent:#4ade80;--accent-rgb:74,222,128}
 body[data-prio="circularity"]{--accent:#c084fc;--accent-rgb:192,132,252}
 body[data-prio="service"]{--accent:#fbbf24;--accent-rgb:251,191,36}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;min-height:100%}
+html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:17px;line-height:1.5;min-height:100%}
 body{overflow-x:hidden}
 button,select,input{font:inherit;color:inherit}
 .app{max-width:1680px;margin:0 auto;padding:18px 24px 28px}
@@ -78,7 +78,9 @@ select{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
 .tile .n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
 .tile .l{font-size:12.5px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 /* badges */
-.badge{display:inline-flex;align-items:center;font-family:var(--mono);font-size:9.5px;letter-spacing:.4px;padding:2px 6px;border-radius:5px;border:1px solid;cursor:pointer;white-space:nowrap;vertical-align:middle;text-transform:uppercase}
+.badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--font);font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid #243243;background:#0c131b;cursor:pointer;white-space:nowrap;vertical-align:middle;color:var(--muted)!important}
+.badge::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor}
+.badge.SIMULATED::before{background:#93a4b8}.badge.ESTIMATED::before{background:#fcd34d}.badge.TEAM_ASSUMPTION::before{background:#f0abfc}.badge.PUBLIC_REFERENCE::before{background:#7dd3fc}.badge.FIELD_SCAN_DEMO::before{background:#4ade80}
 .badge.SIMULATED{color:#93a4b8;border-color:#334255}
 .badge.ESTIMATED{color:#fcd34d;border-color:#6b5414}
 .badge.TEAM_ASSUMPTION{color:#f0abfc;border-color:#6b2a73}
@@ -153,6 +155,52 @@ svg text{font-family:var(--font)}
 .modal .box{background:#0e151f;border:1px solid var(--line);border-radius:16px;padding:22px;width:min(420px,92vw);display:flex;flex-direction:column;gap:12px}
 .modal input,.modal select{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
 .demo-keys{color:var(--dim);font-size:12px;margin-top:14px;text-align:center}
+
+/* ---- focus layout (low cognitive load) ---- */
+header select{font-size:16px;padding:8px 12px}
+.seg button{font-size:15px;padding:8px 14px}
+.lead{font-size:20px;margin:22px 0 18px;color:var(--muted)}
+.lead b{color:var(--text)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
+.herocard{padding:28px 30px}
+.herocard .say{font-size:19px;color:var(--muted);margin-bottom:6px}
+.herocard .big{font-family:var(--num);font-size:clamp(56px,7vw,104px);font-weight:800;letter-spacing:-2px;line-height:1;color:var(--accent);text-shadow:0 0 40px rgba(var(--accent-rgb),.35);font-variant-numeric:tabular-nums}
+.herocard .unit{font-family:var(--num);font-size:28px;font-weight:700;margin-left:8px;color:var(--text)}
+.herocard .mean{font-size:21px;margin:14px 0 4px;color:var(--text)}
+.herocard .like{font-size:17px;color:var(--muted)}
+.herocard .range{margin-top:18px}
+.herocard .range-l{font-size:14px}
+.pills{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.pill{border-radius:16px;padding:14px 16px;border:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:4px;min-width:0}
+.pill .top{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--muted)}
+.pill .ic{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:15px;color:#07120a;flex:none}
+.pill.green .ic{background:var(--green)} .pill.amber .ic{background:var(--amber)} .pill.red .ic{background:var(--red)}
+.pill.green{border-color:rgba(34,197,94,.35)} .pill.amber{border-color:rgba(245,165,36,.45)} .pill.red{border-color:rgba(239,68,68,.45)}
+.pill .v{font-family:var(--num);font-size:24px;font-weight:800}
+.talk .label{font-size:15px;color:var(--muted);margin-bottom:8px}
+.talk .q{font-size:22px;font-weight:700;line-height:1.35;color:var(--text)}
+.talk .why{font-size:16px;color:var(--muted);margin-top:10px}
+.talk .acts{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.mapcard{padding:14px}
+.mapcard .map{max-height:520px}
+.hint{font-size:15px;color:var(--muted);text-align:center;margin-top:4px}
+.liveline{margin-top:14px;font-size:16px;color:var(--muted);text-align:center;min-height:24px}
+.liveline b{color:var(--text)}
+.demo{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.demo .btn{font-size:15px;padding:9px 14px}
+.more{margin-top:26px;border-top:1px solid var(--line);padding-top:14px}
+.more summary{cursor:pointer;font-size:17px;color:var(--muted);list-style:none;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--line);border-radius:999px}
+.more summary::before{content:'＋'}
+.more[open] summary::before{content:'－'}
+.more-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:18px}
+.card h3{text-transform:none;letter-spacing:0;font-size:16px;font-weight:700;color:var(--text)}
+.legendlist{display:flex;flex-direction:column;gap:10px;font-size:15px;color:var(--muted)}
+.settings .row{display:flex;flex-direction:column;gap:6px}
+.settings label{font-size:14px;color:var(--muted)}
+.kpis{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.seg{flex-wrap:wrap}
+@media (max-width:1100px){.main,.more-grid{grid-template-columns:1fr}}
+@media (max-width:620px){.pills{grid-template-columns:1fr}.seg button{padding:7px 10px;font-size:14px}.herocard{padding:20px}}
 /* report (print) */
 #report{display:none}
 @media print{
@@ -178,37 +226,44 @@ svg text{font-family:var(--font)}
   <header>
     <div class="brand">
       <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#04121b" stroke-width="2.4" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 8-8"/><path d="M12 4l-3 -2.5M12 4l-3 2.5"/><circle cx="12" cy="12" r="2.2" fill="#04121b"/></svg></div>
-      <div><h1>ThreadTrace</h1><div class="sub">Scan one garment. See the value of the whole account.</div></div>
+      <div><h1>ThreadTrace</h1></div>
     </div>
-    <div class="ctrl"><label>Customer</label><select id="selCust"></select></div>
-    <div class="ctrl"><label>Compared with</label><select id="selBase"></select></div>
-    <div class="seg" id="segPrio">
-      <button data-p="water">Water</button><button data-p="emissions">Emissions</button><button data-p="circularity">Circularity &amp; cost</button><button data-p="service">Service</button>
+    <select id="selCust" aria-label="Customer"></select>
+    <div class="seg" id="segPrio" aria-label="What matters most">
+      <button data-p="water">💧 Water</button><button data-p="emissions">🌿 CO₂</button><button data-p="circularity">♻ Repairs</button><button data-p="service">🚚 Service</button>
     </div>
-    <button class="btn" id="btnKpi">+ Contract KPI</button>
+    <button class="btn" id="btnSettings">Settings</button>
     <button class="btn primary" id="btnReport">Export report</button>
-    <div class="live" id="live"><i></i><span>Gateway offline</span></div>
+    <div class="live" id="live"><i></i><span>Offline</span></div>
   </header>
 
-  <div class="focus" id="focus"></div>
+  <div class="lead" id="focus"></div>
 
-  <div class="grid">
+  <div class="main">
     <div class="col">
-      <div class="hero">
-        <div class="card" id="cardScore"></div>
-        <div class="card headline" id="cardHead"></div>
-      </div>
-      <div class="card"><h3>Account at a glance <span class="grow"></span><span class="badge SIMULATED" data-b="SIMULATED">simulated</span></h3><div class="tiles" id="tiles"></div></div>
-      <div class="card"><h3 id="chartTitle">Monthly</h3><svg class="chart" id="chart" viewBox="0 0 800 190" preserveAspectRatio="none"></svg></div>
-      <div class="card"><h3>Context: Lindström vs textile-rental peers <span class="grow"></span><span class="badge PUBLIC_REFERENCE" data-b="PUBLIC_REFERENCE" data-f="pref">public reference</span></h3><div class="pref" id="pref"></div></div>
+      <div class="card herocard" id="cardHead"></div>
+      <div class="pills" id="cardScore"></div>
+      <div class="card talk" id="obs"></div>
     </div>
     <div class="col">
-      <div class="card"><h3>Delivery sites <span class="grow"></span><span id="mapNote" style="text-transform:none;letter-spacing:0"></span></h3><svg class="map" id="map"></svg><div class="legend" id="mapLegend"></div></div>
-      <div class="card"><h3>For the steering committee <span class="grow"></span><span class="badge ESTIMATED" data-b="ESTIMATED">rules-generated</span></h3><div class="obs" id="obs"></div></div>
-      <div class="card"><h3>Live field evidence <span class="grow"></span><span class="badge FIELD_SCAN_DEMO" data-b="FIELD_SCAN_DEMO">field scan (demo)</span></h3><div class="feed" id="feed"><div class="empty">Scan a garment QR code or weigh a return bag to add evidence.</div></div></div>
+      <div class="card mapcard"><svg class="map" id="map"></svg><div class="hint" id="mapNote"></div></div>
+      <div class="liveline" id="feed"></div>
+      <div class="demo"><button class="btn" onclick="simulateScan()">▣ Try a garment scan</button><button class="btn" onclick="simulateWeigh()">⚖ Try a weigh-in</button></div>
     </div>
   </div>
-  <div class="demo-keys"><button class="btn" onclick="simulateScan()">▣ Simulate garment scan</button> <button class="btn" onclick="simulateWeigh()">⚖ Simulate weigh-in</button><br><span style="display:inline-block;margin-top:8px">Keys: <b>S</b> scan · <b>W</b> weigh-in · <b>Esc</b> close</span></div>
+
+  <details class="more" id="more">
+    <summary>More numbers and sources</summary>
+    <div class="more-grid">
+      <div class="card"><h3>Account at a glance <span class="grow"></span><span class="badge SIMULATED" data-b="SIMULATED">simulated</span></h3><div class="tiles" id="tiles"></div></div>
+      <div class="card"><h3 id="chartTitle">Monthly</h3><svg class="chart" id="chart" viewBox="0 0 800 190" preserveAspectRatio="none"></svg></div>
+      <div class="card"><h3>All questions for the steering committee</h3><div class="obs" id="obsAll"></div></div>
+      <div class="card"><h3>Lindström vs textile-rental peers <span class="grow"></span><span class="badge PUBLIC_REFERENCE" data-b="PUBLIC_REFERENCE" data-f="pref">public reference</span></h3><div class="pref" id="pref"></div></div>
+      <div class="card"><h3>All field evidence</h3><div class="feed" id="feedAll"><div class="empty">Nothing scanned yet.</div></div></div>
+      <div class="card"><h3>What the labels mean</h3><div class="legendlist" id="labels"></div></div>
+    </div>
+  </details>
+  <div class="demo-keys">Keys: <b>S</b> scan · <b>W</b> weigh-in · <b>Esc</b> close</div>
 </div>
 
 <div class="drawer" id="drawer"></div>
@@ -222,6 +277,12 @@ svg text{font-family:var(--font)}
   <select id="kpiMetric"><option value="on_time">On-time cycles (%)</option><option value="scan_share">Garments with scan activity (%)</option><option value="sr_per_site">Service requests per site (count, lower is better)</option></select>
   <input id="kpiTarget" type="number" step="0.1" placeholder="Target, e.g. 98">
   <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="kpiCancel">Cancel</button><button class="btn primary" id="kpiSave">Add</button></div>
+</div></div>
+<div class="modal" id="settings"><div class="box settings">
+  <b style="font-size:19px">Settings</b>
+  <div class="row"><label for="selBase">Compare Lindström with</label><select id="selBase"></select></div>
+  <div class="row"><label>Contract KPIs for this customer</label><div class="kpis" id="kpiList"></div><button class="btn" id="btnKpi">+ Add contract KPI</button></div>
+  <div style="display:flex;justify-content:flex-end"><button class="btn primary" id="setClose">Done</button></div>
 </div></div>
 <div id="report"></div>
 
@@ -271,31 +332,36 @@ function metric(obj, p=S.prio, lvl='base'){
   return obj.service.on_time_pct;
 }
 const PRIO = {
-  water:{label:'Water saved', unit:'L', what:b=>`vs ${b} · 2025`, kind:'ESTIMATED', f:'water', series:'water_saved_l', seriesLabel:'Water saved vs local laundry (L)'},
-  emissions:{label:'CO₂e avoided', unit:'kg', what:b=>`vs ${b} · process + delivery · 2025`, kind:'ESTIMATED', f:'emissions', series:'co2e_saved_kg', seriesLabel:'CO₂e saved vs local laundry (kg)'},
-  circularity:{label:'CO₂e avoided by repairs', unit:'kg', what:()=>`new garments not bought because repairs extended life · 2025`, kind:'ESTIMATED', f:'circularity', series:'kg', seriesLabel:'Washed kg'},
-  service:{label:'Cycles on time', unit:'%', what:()=>`pickup → laundry → delivery, all garments · 2025`, kind:'SIMULATED', f:'service', series:'service_requests', seriesLabel:'Service requests'},
+  water:{label:'Water saved', short:'more water saved', say:b=>`Compared with ${b}, Lindström saved`, mean:'litres of water in 2025.', unit:'L', what:b=>`vs ${b} · 2025`, kind:'ESTIMATED', f:'water', series:'water_saved_l', seriesLabel:'Water saved vs local laundry (L)'},
+  emissions:{label:'CO₂e avoided', short:'more CO₂ saved', say:b=>`Compared with ${b}, Lindström avoided`, mean:'kg of CO₂e in 2025.', unit:'kg', what:b=>`vs ${b} · process + delivery · 2025`, kind:'ESTIMATED', f:'emissions', series:'co2e_saved_kg', seriesLabel:'CO₂e saved vs local laundry (kg)'},
+  circularity:{label:'CO₂e avoided by repairs', short:'more repair value', say:()=>`By repairing garments instead of replacing them, Lindström avoided`, mean:'kg of CO₂e from new garments.', unit:'kg', what:()=>`new garments not bought because repairs extended life · 2025`, kind:'ESTIMATED', f:'circularity', series:'kg', seriesLabel:'Washed kg'},
+  service:{label:'Cycles on time', short:'more on time', say:()=>`Pickup, wash and delivery arrived on time in`, mean:'of all service cycles in 2025.', unit:'%', what:()=>`pickup → laundry → delivery, all garments · 2025`, kind:'SIMULATED', f:'service', series:'service_requests', seriesLabel:'Service requests'},
 };
 
 /* ---------- render ---------- */
-function renderAll(){ renderFocus(); renderScore(); renderHead(); renderTiles(); renderChart(); renderMap(); renderObs(); renderPref(); renderFeed(); }
+function renderAll(){ renderFocus(); renderScore(); renderHead(); renderTiles(); renderChart(); renderMap(); renderObs(); renderPref(); renderFeed(); renderLabels(); }
 
 function renderFocus(){
-  const c = C();
-  const ip = c.industry_priorities.map(p=>`<span class="chip">${p.rank}. ${p.theme}</span>`).join('');
+  const c = C(), focusWord = {water:'water', emissions:'CO₂', circularity:'repairs', service:'service'}[S.prio];
   const kp = S.kpis.filter(k=>k.cust===S.cust).map(k=>{ const v = kpiValue(k), ok = k.metric==='sr_per_site' ? v<=k.target : v>=k.target;
-    return `<span class="chip kpi ${ok?'ok':'bad'}">${ok?'✓':'✗'} ${k.name}: ${fmt(v,1)} / ${fmt(k.target,1)}</span>`; }).join('');
-  $('#focus').innerHTML = `<b style="color:var(--text)">${c.name}</b> · ${c.industry} · ${c.sites.length} sites · Industry focus: ${ip}${kp?` · Contract KPIs: ${kp}`:''}`;
+    return `<span class="chip kpi ${ok?'ok':'bad'}">${ok?'✓':'✗'} ${k.name}</span>`; }).join(' ');
+  $('#focus').innerHTML = `<b>${c.name}</b> · 2025 · ${c.industry} · looking at <b style="color:var(--accent)">${focusWord}</b>${kp?' · '+kp:''}`;
+  const kl = $('#kpiList'); if(kl) kl.innerHTML = S.kpis.filter(k=>k.cust===S.cust).map(k=>`<span class="chip">${k.name}: ${fmt(kpiValue(k),1)} / target ${fmt(k.target,1)}</span>`).join('') || '<span style="color:var(--muted)">None yet</span>';
 }
 function kpiValue(k){ const s=C().service; return k.metric==='on_time'? s.on_time_pct : k.metric==='scan_share'? s.scan_share_pct : s.service_requests/C().sites.length; }
 
 function renderScore(){
-  const sc = C().scorecard, word = {green:'On track', amber:'Watch', red:'Act now'};
-  $('#cardScore').innerHTML = `<h3>Customer success scorecard <span class="grow"></span>${badge('TEAM_ASSUMPTION','')}</h3>
-   <div class="rag-big"><div class="rag-dot ${sc.overall}"></div><div><b>${word[sc.overall]}</b><span>Overall account health, 2025</span></div></div>
-   <div class="rag-row"><i class="${sc.service.rag}"></i>Service performance<span class="v">${fmt(sc.service.value,1)}% on time</span></div>
-   <div class="rag-row"><i class="${sc.adoption.rag}"></i>Service adoption<span class="v">${fmt(sc.adoption.value,1)}% scanned</span></div>
-   <div class="rag-row"><i class="${sc.sustainability.rag}"></i>Sustainability value<span class="v">${short(C().impact.vs[S.base].base.water_saved_l)} L water</span></div>`;
+  const sc = C().scorecard, ic = {green:'✓', amber:'!', red:'✕'};
+  const pill = (r, name, val) => `<div class="pill ${r}"><div class="top"><span class="ic">${ic[r]}</span>${name}</div><div class="v">${val}</div></div>`;
+  $('#cardScore').innerHTML =
+    pill(sc.service.rag, 'Service', fmt(sc.service.value,0)+'% on time') +
+    pill(sc.adoption.rag, 'Garments in use', fmt(sc.adoption.value,0)+'% scanned') +
+    pill(sc.sustainability.rag, 'Water', short(C().impact.vs[S.base].base.water_saved_l)+' L saved');
+}
+function likeText(v){
+  if(S.prio==='water') return `About ${fmt(v/150)} full bathtubs.`;
+  if(S.prio==='emissions' || S.prio==='circularity') return `About ${fmt(v/0.17/40075,0)} trips around the Earth by car.`;
+  return `About ${Math.round(v)} of every 100 deliveries arrived on time.`;
 }
 function renderHead(){
   const c = C(), P = PRIO[S.prio], v = metric(c), lo = metric(c,S.prio,'low'), hi = metric(c,S.prio,'high');
@@ -303,15 +369,17 @@ function renderHead(){
   if(S.prio!=='service'){
     const max = hi*1.08, pct = x => Math.max(0,Math.min(100,x/max*100));
     rangeHtml = `<div class="range"><div class="track"></div><div class="band" style="left:${pct(lo)}%;width:${pct(hi)-pct(lo)}%"></div><div class="mid" style="left:calc(${pct(v)}% - 2px)"></div></div>
-     <div class="range-l"><span>low ${short(lo)}</span><span>base ${short(v)}</span><span>high ${short(hi)}</span></div>`;
-  } else {
-    rangeHtml = `<div class="range-l" style="margin-top:12px"><span>${fmt(c.service.cycles)} cycles · ${fmt(c.service.late_cycles)} late · avg turnaround ${fmt(c.service.avg_cycle_hours,0)} h</span></div>`;
-  }
-  const extra = S.prio==='circularity' ? `<div class="range-l" style="margin-top:10px"><span>Avoided purchase cost ${badge('ESTIMATED','circularity')}</span><b style="color:var(--text)">€${short(c.repairs.avoided_cost_eur.low)}–${short(c.repairs.avoided_cost_eur.high)}</b></div>` : '';
-  $('#cardHead').innerHTML = `<h3>${P.label} <span class="grow"></span>${badge(P.kind,P.f)}</h3>
+     <div class="range-l"><span>Likely between ${short(lo)} and ${short(hi)} ${P.unit}</span>${badge(P.kind,P.f)}</div>`;
+  } else rangeHtml = `<div class="range-l" style="margin-top:14px"><span>${fmt(c.service.late_cycles)} late out of ${fmt(c.service.cycles)}</span>${badge(P.kind,P.f)}</div>`;
+  const cost = S.prio==='circularity' ? `<div class="like" style="margin-top:6px">And about €${short(c.repairs.avoided_cost_eur.base)} of new garments not bought.</div>` : '';
+  $('#cardHead').innerHTML = `<div class="say">${P.say(B().name.toLowerCase())}</div>
     <div><span class="big" id="headNum">0</span><span class="unit">${P.unit}</span></div>
-    <div class="what">${P.what(B().name.toLowerCase())}</div>${rangeHtml}${extra}`;
+    <div class="mean">${P.mean}</div><div class="like" title="Rough comparison: 150 L per bathtub, 0.17 kg CO₂e per car km, 40,075 km around the Earth">${likeText(v)}</div>${cost}${rangeHtml}`;
   countUp($('#headNum'), v, S.prio==='service'? x=>fmt(x,1) : short);
+}
+function renderLabels(){
+  const L = $('#labels'); if(!L) return;
+  L.innerHTML = Object.entries(S.data.meta.status_legend).map(([k,t])=>`<div>${badge(k)} ${t}</div>`).join('');
 }
 function renderTiles(){
   const c = C(), s = c.service;
@@ -377,30 +445,43 @@ function renderMap(target='#map', opts={}){
     if(!opts.static) g.addEventListener('click',()=>openSite(s.id)); g.style.cursor='pointer';
   });
   if(!opts.static){
-    $('#mapNote').textContent = `dot size = garments · brightness = ${PRIO[S.prio].label.toLowerCase()}`;
-    $('#mapLegend').innerHTML = `<span>■ laundry</span><span>● delivery site (click for drill-down)</span><span>— delivery route</span>`;
+    $('#mapNote').innerHTML = `${C().sites.length} sites. <b style="color:var(--text)">Bigger dot</b> = more garments. <b style="color:var(--accent)">Brighter</b> = ${PRIO[S.prio].short}. Tap a dot.`;
   }
 }
 const LAUNDRY_LL = {L001:[60.17,24.94], L002:[60.45,22.27], L003:[55.60,13.00], L004:[52.23,21.01]};
 
-function renderObs(){
+function sortedObs(){
   const order = {water:['water','adoption','circularity','service'], emissions:['water','circularity','adoption','service'], circularity:['circularity','adoption','water','service'], service:['service','adoption','circularity','water']}[S.prio];
-  const obs = [...C().observations].sort((a,b)=>order.indexOf(a.theme)-order.indexOf(b.theme)).slice(0,3);
-  $('#obs').innerHTML = obs.map((o,i)=>`<div class="ob ${i===0?'top':''}" data-site="${o.site}"><div class="meta">${o.theme} ${badge(o.status, o.theme==='adoption'?'noscan':(o.theme==='service'?'service':(o.theme==='water'?'water':'circularity')))}</div>${o.text}<div class="q">→ ${o.question}</div></div>`).join('');
-  document.querySelectorAll('.ob').forEach(n=>n.addEventListener('click',e=>{ if(e.target.closest('.badge')) return; openSite(n.dataset.site); }));
+  return [...C().observations].sort((a,b)=>order.indexOf(a.theme)-order.indexOf(b.theme));
+}
+const OBS_F = o => o.theme==='adoption'?'noscan':(o.theme==='service'?'service':(o.theme==='water'?'water':'circularity'));
+function renderObs(){
+  const o = sortedObs()[0];
+  $('#obs').innerHTML = `<div class="label">Talk about this at the annual review</div>
+    <div class="q">${o.question}</div>
+    <div class="why">Why: ${o.text} ${badge(o.status, OBS_F(o))}</div>
+    <div class="acts"><button class="btn" id="obsSite">Open ${(siteById(o.site)||{}).city||'site'}</button><button class="btn" id="obsMore">See 3 more questions</button></div>`;
+  $('#obsSite').onclick = () => openSite(o.site);
+  $('#obsMore').onclick = () => { $('#more').open = true; $('#obsAll').scrollIntoView({behavior:'smooth', block:'center'}); };
+  $('#obsAll').innerHTML = sortedObs().map((x,i)=>`<div class="ob ${i===0?'top':''}" data-site="${x.site}">${x.text} ${badge(x.status, OBS_F(x))}<div class="q">→ ${x.question}</div></div>`).join('');
+  document.querySelectorAll('#obsAll .ob').forEach(n=>n.addEventListener('click',e=>{ if(e.target.closest('.badge')) return; openSite(n.dataset.site); }));
 }
 function renderPref(){
   const pr = S.data.public_reference, vals = Object.entries(pr.values).sort((a,b)=>b[1]-a[1]), max = Math.max(...vals.map(v=>v[1]));
   $('#pref').innerHTML = vals.map(([n,v])=>`<div class="row ${n.startsWith('Lindstr')?'me':''}"><span>${n}</span><div class="bar" style="width:${v/max*100}%"></div><span>${v.toFixed(2)}</span></div>`).join('') +
    `<div style="color:var(--muted);margin-top:6px">kg CO₂e per € turnover · Lindström ≈ 13% below peer average · company level, not customer-specific</div>`;
 }
+function evLine(e){
+  if(e.type==='scan'){ const p=S.data.passports[e.asset_id]; const pn = p? S.data.products[p.p].name : 'Unknown garment'; const sn = p? (siteById(p.s)||{}).city||p.s : '';
+    return `▣ <b>${pn}</b> scanned in ${sn}`; }
+  return `⚖ <b>${fmt(e.kg,1)} kg</b> weighed · ${short(weighCalc(e.kg).water)} L water saved`;
+}
 function renderFeed(){
   const evs = S.events.slice(-12).reverse();
-  if(!evs.length) return;
-  $('#feed').innerHTML = evs.map(e=>{ const t = (e.ts||'').slice(11,16);
-    if(e.type==='scan'){ const p=S.data.passports[e.asset_id]; const pn = p? S.data.products[p.p].name : 'Unknown garment'; const sn = p? (siteById(p.s)||{}).name||p.s : '';
-      return `<div class="ev"><span class="t">${t}</span>▣ <b>${e.asset_id}</b> ${pn} · ${sn}</div>`; }
-    return `<div class="ev"><span class="t">${t}</span>${e.photo?`<img src="${e.photo}" alt="">`:'⚖'} <b>${fmt(e.kg,1)} kg</b> returned · ${short(weighCalc(e.kg).water)} L water saved</div>`; }).join('');
+  if(!evs.length){ $('#feed').innerHTML = 'Scan a garment QR code with a phone to start.'; return; }
+  const e = evs[0];
+  $('#feed').innerHTML = `Latest from the field (${(e.ts||'').slice(11,16)}): ${evLine(e)} ${badge('FIELD_SCAN_DEMO')}`;
+  $('#feedAll').innerHTML = evs.map(x=>`<div class="ev"><span class="t">${(x.ts||'').slice(11,16)}</span>${x.photo?`<img src="${x.photo}" alt="">`:''}${evLine(x)}</div>`).join('');
 }
 
 /* ---------- site drawer ---------- */
@@ -567,7 +648,7 @@ function connect(){
     es.onmessage = m => { try{ onEvent(JSON.parse(m.data)); }catch(e){} };
   }catch(e){ setLive(false); }
 }
-function setLive(on){ const l=$('#live'); l.classList.toggle('on',on); l.querySelector('span').textContent = on? 'Gateway live · UNO Q' : 'Gateway offline (demo keys work)'; }
+function setLive(on){ const l=$('#live'); l.classList.toggle('on',on); l.querySelector('span').textContent = on? 'UNO Q live' : 'Offline'; }
 let simId = -1;
 function simulateScan(aid){ const ids = S.data.demo_assets; aid = aid || ids[Math.floor(Math.random()*ids.length)];
   if(/^https?:/.test(location.protocol)){ fetch('api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({asset_id:aid,source:'dashboard-sim'})}).then(r=>{ if(!r.ok) throw 0; }).catch(()=>onEvent({id:simId--,type:'scan',asset_id:aid,ts:new Date().toISOString()})); }
@@ -639,7 +720,9 @@ function init(data){
   $('#selBase').onchange = e => { S.base = e.target.value; renderAll(); };
   document.querySelectorAll('#segPrio button').forEach(b=>b.onclick=()=>setPrio(b.dataset.p));
   $('#btnReport').onclick = () => { buildReport(); window.print(); };
-  $('#btnKpi').onclick = () => $('#modal').classList.add('show');
+  $('#btnKpi').onclick = () => { $('#settings').classList.remove('show'); $('#modal').classList.add('show'); };
+  $('#btnSettings').onclick = () => { renderFocus(); $('#settings').classList.add('show'); };
+  $('#setClose').onclick = () => $('#settings').classList.remove('show');
   $('#kpiCancel').onclick = () => $('#modal').classList.remove('show');
   $('#kpiSave').onclick = () => { const name=$('#kpiName').value.trim()||$('#kpiMetric').selectedOptions[0].text, t=parseFloat($('#kpiTarget').value);
     if(isNaN(t)){ toast('Enter a target'); return; } S.kpis.push({cust:S.cust,name,metric:$('#kpiMetric').value,target:t}); store('kpis',S.kpis); $('#modal').classList.remove('show'); renderFocus(); };
