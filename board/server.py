@@ -117,7 +117,8 @@ def passport_summary(aid):
     prod = DATA["products"][p["p"]]
     cust = DATA["customers"][p["c"]]
     site = next((s for s in cust["sites"] if s["id"] == p["s"]), {"name": p["s"]})
-    return {"product": prod["name"], "site": site["name"], "customer": cust["name"], "cycles": len(p["cy"]), "site_id": p["s"]}
+    return {"product": prod["name"], "site": site["name"], "customer": cust["name"], "customer_id": p["c"],
+            "cycles": len(p["cy"]), "site_id": p["s"]}
 
 
 _model = {"name": GEMINI_MODEL, "candidates": []}
@@ -210,8 +211,11 @@ def page_scan(aid, info):
 <div class=ok>✓</div><h1>{info['product']}</h1>
 <p class=m>{aid} · {info['site']}<br>{info['customer']} · {info['cycles']} service cycles in 2025</p>
 <p><span class=tag>FIELD SCAN (DEMO)</span></p>
-<p class=m>Sent to the review screen. Look up!</p>
-<a class="b g" href="/weigh">Weigh a return bag →</a>"""
+<p class=m>Sent to the review screen. You can also open it here:</p>
+<a class=b href="/?attract=0&cust={info['customer_id']}&play={aid}">▶ See this garment's story</a>
+<a class="b g" href="/?attract=0&cust={info['customer_id']}">📊 Open the {info['customer']} review</a>
+<a class="b g" href="/?attract=0&cust={info['customer_id']}&report=1">📄 Read the annual report</a>
+<a class="b g" href="/weigh">⚖ Weigh a return bag</a>"""
 
 
 PAGE_WEIGH = f"""<!doctype html><title>ThreadTrace weigh-in</title>{PHONE_CSS}
@@ -219,7 +223,8 @@ PAGE_WEIGH = f"""<!doctype html><title>ThreadTrace weigh-in</title>{PHONE_CSS}
 <label class=b id=lab>📷 Take photo of scale<input id=cam type=file accept="image/*" capture="environment" hidden></label>
 <p class=m style="margin-top:22px">Or type the weight:</p><input id=kg type=number step=0.1 inputmode=decimal placeholder="kg">
 <button class="b g" id=send>Send weight</button>
-<div class=res id=res hidden><div class=kg id=rkg></div><div class=arrow>washed by Lindström instead of a local laundry →</div><div class=w id=rw></div><div class=s id=rs></div><div class=s style="color:#4ade80;margin-top:14px">▲ Look at the big screen</div></div>
+<div class=res id=res hidden><div class=kg id=rkg></div><div class=arrow>washed by Lindström instead of a local laundry →</div><div class=w id=rw></div><div class=s id=rs></div><div class=s style="color:#4ade80;margin-top:14px">▲ Also shown on the big screen</div></div>
+<div id=next hidden><a class=b href="/?attract=0&cust=CUST001">📊 Open the customer review</a><a class="b g" href="/?attract=0&cust=CUST001&report=1">📄 Read the annual report</a></div>
 <img id=prev hidden><p class=m id=st></p><button class="b g" id=retry hidden>↻ Try reading this photo again</button>
 <script>
 const st=document.getElementById('st');
@@ -231,7 +236,7 @@ async function send(body){{st.textContent='Sending…';const r=await fetch('/api
  const res=document.getElementById('res');res.hidden=!j.ok;
  if(j.ok){{document.getElementById('rkg').textContent=j.event.kg+' kg';document.getElementById('rw').textContent='≈ '+j.impact.water_l+' L water saved';
   document.getElementById('rs').textContent='≈ '+j.impact.pieces+' garments · '+j.impact.co2_kg+' kg CO₂e avoided · estimate';
-  document.getElementById('prev').hidden=true;res.scrollIntoView({{behavior:'smooth'}});}}
+  document.getElementById('prev').hidden=true;document.getElementById('next').hidden=false;res.scrollIntoView({{behavior:'smooth'}});}}
  document.getElementById('retry').hidden=j.ok||!body.image;}}
 let lastImg=null;document.getElementById('retry').onclick=()=>{{if(lastImg){{st.textContent='Trying again…';send({{image:lastImg}});}}}};
 document.getElementById('cam').onchange=async e=>{{const f=e.target.files[0];if(!f)return;const d=await shrink(f);const p=document.getElementById('prev');p.src=d;p.hidden=false;

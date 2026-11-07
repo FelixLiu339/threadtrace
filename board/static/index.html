@@ -200,7 +200,7 @@ header select{font-size:16px;padding:8px 12px}
 .kpis{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .seg{flex-wrap:wrap}
 @media (max-width:1100px){.main,.more-grid{grid-template-columns:1fr}}
-@media (max-width:620px){.pills{grid-template-columns:1fr}.seg button{padding:7px 10px;font-size:14px}.herocard{padding:20px}}
+@media (max-width:620px){.ov-top{padding:14px 16px;gap:8px}.ov-top>span:nth-child(2){display:none}.ov-top .steps i{width:18px}.ov-body{padding:0 16px 16px;gap:16px}.ov-foot{padding:0 16px 14px;font-size:11.5px}.pills{grid-template-columns:1fr}.seg button{padding:7px 10px;font-size:14px}.herocard{padding:20px}}
 .scalebox{position:fixed;inset:0;z-index:45;background:#3a4048;display:flex;flex-direction:column}
 .scalebox[hidden]{display:none}
 .scalebar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;color:#e9eff6;background:#2b3038;font-size:16px}
@@ -251,6 +251,22 @@ header select{font-size:16px;padding:8px 12px}
 .at-cust button.on{color:#04121b;background:var(--accent);border-color:transparent;font-weight:700}
 /* report (print) */
 #report{display:none}
+body.reading{background:#eef1f4}
+body.reading .app,body.reading .attract,body.reading .drawer,body.reading .scalebox{display:none!important}
+body.reading #report{display:block;max-width:900px;margin:0 auto;padding:20px max(16px,4vw) 64px;background:#fff;color:#14181d;font-family:var(--font);font-size:16px;line-height:1.5;min-height:100vh}
+body.reading #report h1{font-family:var(--num);font-size:clamp(24px,5vw,34px);line-height:1.15;margin:6px 0 6px}
+body.reading #report h2{font-size:19px;margin:26px 0 8px;border-bottom:1px solid #d9dee4;padding-bottom:4px}
+body.reading #report table{width:100%;border-collapse:collapse;font-size:14.5px}
+@media (max-width:700px){body.reading #report table{display:block;overflow-x:auto}}
+body.reading #report td,body.reading #report th{border-bottom:1px solid #e6e9ed;padding:7px 8px;text-align:left;vertical-align:top}
+body.reading #report th{background:#f3f4f6}
+body.reading #report .st{font-family:var(--mono);font-size:11px;color:#5b6470}
+body.reading #report .muted{color:#5b6470}
+body.reading #report .rag{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:middle;margin-right:6px}
+.rtool{position:sticky;top:0;z-index:5;display:flex;gap:10px;justify-content:space-between;align-items:center;background:#fff;padding:10px 0 12px;border-bottom:1px solid #e6e9ed;margin-bottom:14px;flex-wrap:wrap}
+.rtool button{font:inherit;font-size:15px;padding:9px 14px;border-radius:10px;border:1px solid #cfd6de;background:#f6f8fa;color:#14181d;cursor:pointer}
+.rtool button.pdf{background:#0b6fa4;color:#fff;border-color:transparent;font-weight:700}
+@media print{.rtool{display:none!important}}
 @media print{
   @page{size:A4;margin:14mm}
   body{background:#fff;color:#111}
@@ -464,7 +480,8 @@ function renderLiveToday(bump){
   const box = $('#liveToday'); if(!box) return; const t = liveTotals();
   if(!t.scans && !t.weighs){ box.hidden = true; return; }
   box.hidden = false;
-  box.innerHTML = `<span class="dot"></span>Live from the field today: <b>${t.scans}</b> garment${t.scans===1?'':'s'} scanned · <b>${fmt(t.kg,1)} kg</b> weighed · <b>+${fmt(t.water,0)} L</b> water saved ${badge('FIELD_SCAN_DEMO')}`;
+  const parts = []; if(t.scans) parts.push(`<b>${t.scans}</b> garment${t.scans===1?'':'s'} scanned`); if(t.weighs) parts.push(`<b>${fmt(t.kg,1)} kg</b> weighed · <b>+${fmt(t.water,0)} L</b> water saved`);
+  box.innerHTML = `<span class="dot"></span>Live from the field today: ${parts.join(' · ')} ${badge('FIELD_SCAN_DEMO')}`;
   if(bump){ box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump'); }
 }
 function renderLabels(){
@@ -726,6 +743,7 @@ function playWeigh(ev){
 
 /* ---------- events (gateway) ---------- */
 function onEvent(ev, replay){
+  if(ev.local){ enqueue(ev); return; }
   if(S.events.some(e=>e.id===ev.id && ev.id!=null)) return;
   S.events.push(ev); renderFeed();
   if(!replay) enqueue(ev);
@@ -846,11 +864,13 @@ document.addEventListener('click', e=>{
 }, true);
 
 /* ---------- report ---------- */
+function openReport(){ buildReport(); hideAttract && AT.on && hideAttract(); document.body.classList.add('reading'); window.scrollTo(0,0); }
+function closeReport(){ document.body.classList.remove('reading'); window.scrollTo(0,0); renderAll(); }
 function buildReport(){
   const c = C(), b = B(), v = c.impact.vs[S.base], sc = c.scorecard, rc = {green:'#22c55e',amber:'#f59e0b',red:'#ef4444'};
   const sites = [...c.sites].sort((a,x)=>metric(x)-metric(a));
   const st = k=>`<span class="st">[${k}]</span>`;
-  $('#report').innerHTML = `
+  $('#report').innerHTML = `<div class="rtool"><button onclick="closeReport()">← Back to the review</button><button class="pdf" onclick="window.print()">Save as PDF</button></div>
   <div class="muted">ThreadTrace · Customer Value &amp; Sustainability Review · ${new Date().toISOString().slice(0,10)}</div>
   <h1>${c.name} — 2025 annual review</h1>
   <div class="muted">${c.industry} · ${c.segment} · ${c.sites.length} delivery sites · compared with: ${b.name} · priority view: ${PRIO[S.prio].label}</div>
@@ -897,7 +917,7 @@ function init(data){
   $('#selCust').onchange = e => setCustomer(e.target.value);
   $('#selBase').onchange = e => { S.base = e.target.value; renderAll(); };
   document.querySelectorAll('#segPrio button').forEach(b=>b.onclick=()=>setPrio(b.dataset.p));
-  $('#btnReport').onclick = () => { buildReport(); window.print(); };
+  $('#btnReport').onclick = openReport;
   $('#btnKpi').onclick = () => { $('#settings').classList.remove('show'); $('#modal').classList.add('show'); };
   $('#btnSettings').onclick = () => { renderFocus(); $('#settings').classList.add('show'); };
   $('#setClose').onclick = () => $('#settings').classList.remove('show');
@@ -906,7 +926,7 @@ function init(data){
     if(isNaN(t)){ toast('Enter a target'); return; } S.kpis.push({cust:S.cust,name,metric:$('#kpiMetric').value,target:t}); store('kpis',S.kpis); $('#modal').classList.remove('show'); renderFocus(); };
   document.addEventListener('keydown', e=>{ if(e.target.matches('input,select')) return;
     if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='a'||e.key==='A'){ AT.on? hideAttract() : showAttract(); }
-    if(e.key==='Escape'){ closeOv(); closeDrawer(); closeScale(); if(AT.on) hideAttract(); $('#pop').style.display='none'; } });
+    if(e.key==='Escape'){ if(document.body.classList.contains('reading')) closeReport(); closeOv(); closeDrawer(); closeScale(); if(AT.on) hideAttract(); $('#pop').style.display='none'; } });
   setPrio(PRIO_DEFAULT[C().industry]||'water');
   if(GATEWAY_QR){ drawQR($('#weighQR'), location.origin + '/weigh', 96); drawQR($('#scanQR'), location.origin + '/s/' + (((S.data.demo_assets||[]).find(a=>(S.data.passports[a]||{}).c===S.cust))||''), 96); }
   else { $('#weighQR').hidden = true; $('#scanQR').hidden = true; }
@@ -914,7 +934,11 @@ function init(data){
   connect();
   setupAttract();
   const q = new URLSearchParams(location.search);
-  if(!q.get('scan') && !q.get('weigh') && q.get('attract')!=='0') setTimeout(showAttract, 400); if(q.get('scan')) setTimeout(()=>simulateScan(q.get('scan')),600); if(q.get('weigh')) setTimeout(()=>simulateWeigh(+q.get('weigh')),600);
+  if(q.get('cust') && S.data.customers[q.get('cust')]) setCustomer(q.get('cust'));
+  const phone = window.innerWidth < 760;
+  if(q.get('play')){ const a = q.get('play'); setTimeout(()=>onEvent({id: simId--, type:'scan', asset_id:a, ts:new Date().toISOString(), local:true}), 600); }
+  if(q.get('report')) setTimeout(openReport, 300);
+  if(!phone && !q.get('scan') && !q.get('weigh') && !q.get('play') && !q.get('report') && q.get('attract')!=='0') setTimeout(showAttract, 400); if(q.get('scan')) setTimeout(()=>simulateScan(q.get('scan')),600); if(q.get('weigh')) setTimeout(()=>simulateWeigh(+q.get('weigh')),600);
 }
 fetch('data.json').then(r=>r.json()).then(init).catch(e=>{ document.body.innerHTML = `<div style="padding:40px;color:#e9eff6;font-family:sans-serif">Could not load data.json (${e}). Serve this folder over http, e.g. <code>python3 server.py</code>.</div>`; });
 </script>
