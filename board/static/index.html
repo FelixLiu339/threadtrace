@@ -969,13 +969,14 @@ function showAttract(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches){ attractFrame(performance.now()); cancelAnimationFrame(AT.raf); }
   else AT.raf = requestAnimationFrame(attractFrame);
 }
+function enterFromAttract(){ attractConverge(()=>{ const a=$('.app'); if(a && a.animate) a.animate([{opacity:0,transform:'scale(.985)'},{opacity:1,transform:'none'}],{duration:600,easing:'cubic-bezier(.2,.8,.2,1)'}); }); }
 function hideAttract(){ AT.on = false; cancelAnimationFrame(AT.raf); $('#attract').hidden = true; AT.idle = Date.now(); }
 function attractConverge(cb){ if(!AT.on){ cb(); return; } $('#attract').classList.add('fade'); AT.converge = {t: performance.now(), cb}; if(matchMedia('(prefers-reduced-motion: reduce)').matches){ hideAttract(); cb(); } }
 function setupAttract(){
   const bump = () => { AT.idle = Date.now(); };
   ['mousemove','keydown','touchstart','click','wheel'].forEach(ev=>addEventListener(ev, bump, {passive:true}));
   addEventListener('mousemove', e=>{ AT.mouse.x = e.clientX; AT.mouse.y = e.clientY; });
-  $('#attract').addEventListener('click', e=>{ if(AT.converge || e.target.closest('.at-cust')) return; hideAttract(); });
+  $('#attract').addEventListener('click', e=>{ if(AT.converge || e.target.closest('.at-cust')) return; enterFromAttract(); });
   addEventListener('resize', ()=>{ if(AT.on) attractBuild(); });
   setInterval(()=>{ if(!AT.on && !S.playing && Date.now()-AT.idle > 90000) showAttract(); }, 5000);
   AT.idle = Date.now();
@@ -1078,7 +1079,7 @@ function init(data){
   $('#kpiSave').onclick = () => { const name=$('#kpiName').value.trim()||$('#kpiMetric').selectedOptions[0].text, t=parseFloat($('#kpiTarget').value);
     if(isNaN(t)){ toast('Enter a target'); return; } S.kpis.push({cust:S.cust,name,metric:$('#kpiMetric').value,target:t}); store('kpis',S.kpis); $('#modal').classList.remove('show'); renderFocus(); };
   document.addEventListener('keydown', e=>{ if(e.target.matches('input,select')) return;
-    if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='a'||e.key==='A'){ AT.on? hideAttract() : showAttract(); }
+    if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='a'||e.key==='A'){ AT.on? enterFromAttract() : showAttract(); }
     if(e.key==='p'||e.key==='P') openWarehouse();
     if(e.key==='Escape'){ closeWarehouse(); if(document.body.classList.contains('reading')) closeReport(); closeOv(); closeDrawer(); closeScale(); if(AT.on) hideAttract(); $('#pop').style.display='none'; } });
   setPrio(PRIO_DEFAULT[C().industry]||'water');
