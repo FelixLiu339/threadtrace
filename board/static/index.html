@@ -227,6 +227,22 @@ header select{font-size:16px;padding:8px 12px}
 .at-qr span{color:var(--muted);font-size:14px}
 .at-qr[hidden]{display:none}
 .attract.fade .at-text,.attract.fade .at-qr{transition:opacity .5s;opacity:0}
+.at-choice{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:0;z-index:3;pointer-events:none}
+.at-choice[hidden]{display:none!important}
+.at-gap{width:min(22vw,300px);flex:none}
+.at-card{pointer-events:auto;width:min(30vw,340px);min-height:200px;justify-content:center;padding:30px 28px;border-radius:24px;border:1px solid rgba(var(--accent-rgb),.45);background:rgba(8,14,22,.55);backdrop-filter:blur(10px);
+  color:var(--text);cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;box-shadow:0 0 50px rgba(var(--accent-rgb),.18);
+  opacity:0;transform:translateY(18px) scale(.97);animation:atIn .6s cubic-bezier(.2,.8,.2,1) forwards;transition:border-color .25s,box-shadow .25s,background .25s}
+.at-card.wk{--accent-rgb:245,165,36;border-color:rgba(245,165,36,.5);box-shadow:0 0 50px rgba(245,165,36,.16);animation-delay:.12s}
+.at-card:hover,.at-card:focus-visible{background:rgba(14,24,36,.75);border-color:rgb(var(--accent-rgb));box-shadow:0 0 70px rgba(var(--accent-rgb),.4);outline:none}
+.at-card .ic{font-size:40px;width:68px;height:68px;border-radius:18px;display:grid;place-items:center;background:rgba(var(--accent-rgb),.14)}
+.at-card b{font-family:var(--num);font-size:clamp(22px,2vw,30px);font-weight:800;letter-spacing:-.4px}
+.at-card span:last-child{color:var(--muted);font-size:16px}
+.at-esc{position:absolute;bottom:max(28px,6vh);left:0;right:0;text-align:center;color:var(--muted);font-size:15px;opacity:0;animation:atIn .6s .4s forwards}
+@keyframes atIn{to{opacity:1;transform:none}}
+.at-choice.go .at-card{animation:atOut .45s forwards}.at-choice.go .at-esc{opacity:0}
+@keyframes atOut{to{opacity:0;transform:scale(1.15)}}
+@media (max-width:760px){.at-choice{flex-direction:column;gap:16px}.at-gap{height:80px;width:auto}.at-card{width:86vw;padding:20px}}
 .actions{display:flex;flex-direction:column;gap:12px;margin-top:16px}
 .act{border:1px solid var(--line);border-radius:16px;background:var(--panel);overflow:hidden}
 .act.open{border-color:rgba(var(--accent-rgb),.55)}
@@ -399,10 +415,16 @@ body.reading #report .rag{display:inline-block;width:11px;height:11px;border-rad
   <div class="at-cust" id="atCust"></div>
   <div class="at-text">
     <div class="at-eyebrow" id="atEyebrow"></div>
-    <h2 class="at-h">Scan one garment.<br><span>See the value of the whole account.</span></h2>
+    <h2 class="at-h">Scan one package.<br><span>See the value of the whole account.</span></h2>
     <div class="at-sub" id="atSub"></div>
   </div>
-  <div class="at-qr"><b>Scan me with your phone camera</b><div class="qr" id="atQR"></div><span>or tap anywhere to explore</span></div>
+  <div class="at-qr"><b>Scan me with your phone camera</b><div class="qr" id="atQR"></div><span>or tap anywhere to start</span></div>
+  <div class="at-choice" id="atChoice" hidden>
+    <button class="at-card" data-go="review"><span class="ic">📊</span><b>Customer review</b><span>For account managers and customers</span></button>
+    <div class="at-gap"></div>
+    <button class="at-card wk" data-go="workshop"><span class="ic">🏭</span><b>Workshop</b><span>For workers: scan, repair, weigh</span></button>
+    <div class="at-esc">Choose where to go · Esc to go back</div>
+  </div>
 </div>
 <div class="whbox" id="whbox" hidden><div class="scalebar"><span>Package room · tap a box, then scan it like a phone in the workshop</span><button class="btn" onclick="closeWarehouse()">Close</button></div><iframe id="whframe" title="Package room"></iframe></div>
 <nav class="phonenav" id="phonenav" hidden><a href="#" onclick="phoneBack();return false">← Back</a><a href="m">🏠 Home</a><a class="sc" href="m?scan=1">📷 Scan</a></nav>
@@ -919,30 +941,32 @@ function warpFrame(now, g, W, H, d, rgb, cx, cy, cv0){
     cv0.last = now;
   }
   const dt = Math.min(50, now - cv0.last)/1000; cv0.last = now;
-  const k = Math.min(1, el / WARP), speed = 0.2 + 2.1*k*k;          // accelerate
+  if(cv0.rgb) rgb = cv0.rgb;
+  const k = cv0.cruise ? 0 : Math.min(1, el / WARP), speed = cv0.cruise ? 0.22 : 0.2 + 2.1*k*k;   // cruise while choosing, then accelerate
+  const spin = cv0.mode === 'workshop' && !cv0.cruise ? 2.4*k : 0;   // workshop: tunnel twists
   g.globalCompositeOperation = 'source-over';
   g.fillStyle = `rgba(4,7,11,${0.34 - 0.1*k})`; g.fillRect(0,0,W,H);
   g.globalCompositeOperation = 'lighter';
   for(const st of cv0.stars){
-    const z0 = st.z; st.z -= speed*dt*st.z*1.6 + speed*dt*0.02;
+    const z0 = st.z, a0 = st.a; st.z -= speed*dt*st.z*1.6 + speed*dt*0.02; st.a += spin*dt;
     if(st.z < 0.012 || F/st.z > diag*1.2){ st.z = 1 + Math.random()*3; st.a = Math.random()*6.283; continue; }   // respawn deep in the centre
-    const r0 = F/z0, r1 = F/st.z, c = Math.cos(st.a), s = Math.sin(st.a);
+    const r0 = F/z0, r1 = F/st.z, c0 = Math.cos(a0), s0 = Math.sin(a0), c = Math.cos(st.a), s = Math.sin(st.a);
     const near = Math.min(1, r1/diag);                                // outer stars: fewer, longer, dimmer
     g.strokeStyle = `rgba(${rgb},${st.b*(0.35 + 0.65*(1-near))})`; g.lineWidth = st.w*(1 + near*1.5);
-    g.beginPath(); g.moveTo(cx + c*r0, cy + s*r0); g.lineTo(cx + c*r1, cy + s*r1); g.stroke();
+    g.beginPath(); g.moveTo(cx + c0*r0, cy + s0*r0); g.lineTo(cx + c*r1, cy + s*r1); g.stroke();
   }
   const cr = (14 + 22*k)*d, core = g.createRadialGradient(cx,cy,0,cx,cy,cr*3);   // brightest point is the centre
   core.addColorStop(0, 'rgba(255,255,255,0.95)'); core.addColorStop(0.12, `rgba(255,255,255,${0.5+0.4*k})`);
   core.addColorStop(0.35, `rgba(${rgb},${0.25+0.25*k})`); core.addColorStop(1, `rgba(${rgb},0)`);
   g.fillStyle = core; g.beginPath(); g.arc(cx,cy,cr*3,0,6.283); g.fill();
-  if(el >= WARP){
+  if(!cv0.cruise && el >= WARP){
     g.globalCompositeOperation = 'source-over';
-    const cb = cv0.cb; AT.converge = null; hideAttract(); cb && cb(); revealAfterAttract(REVEAL); return;
+    const cb = cv0.cb; AT.converge = null; $('#atChoice').hidden = true; hideAttract(); cb && cb(); revealAfterAttract(REVEAL); return;
   }
   AT.raf = requestAnimationFrame(attractFrame);
 }
 function revealAfterAttract(ms){
-  const t = $('#ov').classList.contains('show') ? $('#ov') : $('.app'); if(!t || !t.animate) return;
+  const t = $('#ov').classList.contains('show') ? $('#ov') : (!$('#whbox').hidden ? $('#whbox') : $('.app')); if(!t || !t.animate) return;
   t.animate([{clipPath:'circle(0% at 50% 50%)', filter:'brightness(2.2) blur(6px)', transform:'scale(1.06)'},
              {clipPath:'circle(18% at 50% 50%)', filter:'brightness(1.5) blur(2px)', transform:'scale(1.03)', offset:.35},
              {clipPath:'circle(75% at 50% 50%)', filter:'brightness(1) blur(0)', transform:'none'}],{duration:ms||650, easing:'cubic-bezier(.3,.7,.2,1)'});
@@ -1005,14 +1029,29 @@ function showAttract(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches){ attractFrame(performance.now()); cancelAnimationFrame(AT.raf); }
   else AT.raf = requestAnimationFrame(attractFrame);
 }
-function enterFromAttract(){ attractConverge(null); }
+function enterFromAttract(){
+  if(!AT.on || AT.converge) return;
+  $('#attract').classList.add('fade'); AT.parts.forEach(p=>p.dl=null);
+  AT.converge = {t: performance.now(), cb: null, cruise: true, mode: 'review'};
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) AT.raf = requestAnimationFrame(attractFrame);
+  const ch = $('#atChoice'); ch.classList.remove('go'); ch.hidden = false; setTimeout(()=>{ const b = ch.querySelector('.at-card'); b && b.focus({preventScroll:true}); }, 400);
+}
+function chooseFromAttract(mode, cb){
+  const c = AT.converge; if(!c) return;
+  c.mode = mode; c.cruise = false; c.t = performance.now(); c.cb = cb || (mode==='workshop' ? openWarehouse : null);
+  if(mode==='workshop') c.rgb = '245,165,36';
+  $('#atChoice').classList.add('go'); setTimeout(()=>{ $('#atChoice').hidden = true; }, 450);
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){ AT.converge = null; hideAttract(); c.cb && c.cb(); }
+}
+function cancelChoice(){ if(!AT.converge || !AT.converge.cruise) return false; AT.converge = null; $('#atChoice').hidden = true; $('#attract').classList.remove('fade'); return true; }
 function hideAttract(){ AT.on = false; cancelAnimationFrame(AT.raf); $('#attract').hidden = true; AT.idle = Date.now(); }
-function attractConverge(cb){ if(!AT.on){ cb && cb(); return; } if(AT.converge) return; $('#attract').classList.add('fade'); AT.parts.forEach(p=>p.dl=null); AT.converge = {t: performance.now(), cb}; if(matchMedia('(prefers-reduced-motion: reduce)').matches){ AT.converge = null; hideAttract(); cb && cb(); } }
+function attractConverge(cb){ if(!AT.on){ cb && cb(); return; } if(AT.converge && AT.converge.cruise){ chooseFromAttract('review', cb); return; } if(AT.converge) return; $('#attract').classList.add('fade'); AT.parts.forEach(p=>p.dl=null); AT.converge = {t: performance.now(), cb}; if(matchMedia('(prefers-reduced-motion: reduce)').matches){ AT.converge = null; hideAttract(); cb && cb(); } }
 function setupAttract(){
   const bump = () => { AT.idle = Date.now(); };
   ['mousemove','keydown','touchstart','click','wheel'].forEach(ev=>addEventListener(ev, bump, {passive:true}));
   addEventListener('mousemove', e=>{ AT.mouse.x = e.clientX; AT.mouse.y = e.clientY; });
-  $('#attract').addEventListener('click', e=>{ if(AT.converge || e.target.closest('.at-cust')) return; enterFromAttract(); });
+  $('#attract').addEventListener('click', e=>{ const c = e.target.closest('.at-card'); if(c){ e.stopPropagation(); chooseFromAttract(c.dataset.go); return; }
+    if(AT.converge || e.target.closest('.at-cust')) return; enterFromAttract(); });
   addEventListener('resize', ()=>{ if(AT.on) attractBuild(); });
   setInterval(()=>{ if(!AT.on && !S.playing && Date.now()-AT.idle > 90000) showAttract(); }, 5000);
   AT.idle = Date.now();
@@ -1117,7 +1156,7 @@ function init(data){
   document.addEventListener('keydown', e=>{ if(e.target.matches('input,select')) return;
     if(e.key==='s'||e.key==='S') simulateScan(); if(e.key==='w'||e.key==='W') simulateWeigh(); if(e.key==='a'||e.key==='A'){ AT.on? enterFromAttract() : showAttract(); }
     if(e.key==='p'||e.key==='P') openWarehouse();
-    if(e.key==='Escape'){ closeWarehouse(); if(document.body.classList.contains('reading')) closeReport(); closeOv(); closeDrawer(); closeScale(); if(AT.on) hideAttract(); $('#pop').style.display='none'; } });
+    if(e.key==='Escape'){ if(cancelChoice()) return; closeWarehouse(); if(document.body.classList.contains('reading')) closeReport(); closeOv(); closeDrawer(); closeScale(); if(AT.on) hideAttract(); $('#pop').style.display='none'; } });
   setPrio(PRIO_DEFAULT[C().industry]||'water');
   if(GATEWAY_QR){ drawQR($('#weighQR'), location.origin + '/weigh', 96); drawQR($('#scanQR'), location.origin + '/s/' + (((S.data.demo_assets||[]).find(a=>(S.data.passports[a]||{}).c===S.cust))||''), 96); }
   else { $('#weighQR').hidden = true; $('#scanQR').hidden = true; }
